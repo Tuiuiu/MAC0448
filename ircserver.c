@@ -46,8 +46,10 @@
 #define MAXLINE 4096
 
 #define MAX_CONNECTIONS 100
+#define MAX_MSG_SIZE 500
 
 int connections[MAX_CONNECTIONS];
+int number_of_connections = 0;
 
 void* client_connection(void* arg);
 
@@ -60,8 +62,6 @@ int main (int argc, char **argv) {
 	/* Retorno da função fork para saber quem é o processo filho e quem
 	 * é o processo pai */
 	/*pid_t childpid;*/	
-
-	int conn_idx = 0;
 
 	int i;
 
@@ -137,7 +137,7 @@ int main (int argc, char **argv) {
 			exit(5);
 		}
 
-		connections[conn_idx] = connfd;
+		connections[number_of_connections] = connfd;
 		
 		
 		/* Agora o servidor precisa tratar este cliente de forma
@@ -151,16 +151,16 @@ int main (int argc, char **argv) {
 		/* Se o retorno da função fork for zero, é porque está no
 		 * processo filho. */
 
-		if (pthread_create(&threads[conn_idx], NULL, client_connection, (void*) &indexes[conn_idx]))
+		if (pthread_create(&threads[number_of_connections], NULL, client_connection, (void*) &indexes[number_of_connections]))
 		{
-					printf ("Erro na criação da thread %d.\n", i);
-					exit (EXIT_FAILURE);
+			printf ("Erro na criação da thread %d.\n", i);
+			exit (EXIT_FAILURE);
 		}
 		
-		sprintf(string, "Conexão número %d existe\n", conn_idx);
-		write(connections[conn_idx], string, strlen(string)); 	
+		sprintf(string, "Conexão número %d existe\n", number_of_connections);
+		write(connections[number_of_connections], string, strlen(string)); 	
 
-		conn_idx++;
+		number_of_connections++;
 		/**** PROCESSO PAI ****/
 		/* Se for o pai, a única coisa a ser feita é fechar o socket
 		 * connfd (ele é o socket do cliente específico que será tratado
@@ -174,7 +174,7 @@ int main (int argc, char **argv) {
 
 void* client_connection(void* threadarg)
 {
-	int conn_idx, *aux; /*i é o índice da thread*/
+	int conn_idx, *aux; /* conn_idx é o índice da thread */
 
 	/* Armazena linhas recebidas do cliente */
 	char	recvline[MAXLINE + 1];
@@ -182,6 +182,10 @@ void* client_connection(void* threadarg)
 	ssize_t  n;
 
 	int connfd;
+
+	int i;
+
+	char string[MAX_MSG_SIZE];
 
 	aux = (int*) threadarg;
 	conn_idx = *aux;
@@ -209,12 +213,18 @@ void* client_connection(void* threadarg)
 			 * para que este servidor consiga interpretar comandos IRC	*/
 			while ((n=read(connfd, recvline, MAXLINE)) > 0) {
 				recvline[n]=0;
-				printf("[Cliente conectado na thread %d enviou:] ", conn_idx);
+				printf("[Cliente conectado na thread %d enviou] ", conn_idx);
 				if ((fputs(recvline,stdout)) == EOF) {
 					perror("fputs :( \n");
 					exit(6);
 				}
-				write(connfd, recvline, strlen(recvline));
+
+				sprintf(string, "O usuário %d enviou: %s", conn_idx, recvline);
+
+				for (i = 0; i < number_of_connections; i++)
+				{
+					write(connections[i], string, strlen(string));
+				}
 			}
 
 			/* Após ter feito toda a troca de informação com o cliente,
