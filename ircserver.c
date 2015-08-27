@@ -47,8 +47,13 @@
 
 #define MAX_CONNECTIONS 100
 #define MAX_MSG_SIZE 500
+#define MAX_NICK_SIZE 50
 
-int connections[MAX_CONNECTIONS];
+typedef char nick[MAX_NICK_SIZE];
+
+int connections[MAX_CONNECTIONS]; /* connection[i] é o descritor de arquivo da i-ésima conexão */
+nick nicks[MAX_CONNECTIONS]; /* nick[i] é o nick do usuário conectado na i-ésima conexão */
+
 int number_of_connections = 0;
 
 void* client_connection(void* arg);
@@ -72,7 +77,10 @@ int main (int argc, char **argv) {
 	char string[100];
 
 	for (i = 0; i < MAX_CONNECTIONS; i++)
+	{
 		indexes[i] = i;
+		sprintf (nicks[i], "Anônimo %d", i);
+	}
 	
 	if (argc != 2) {
 		fprintf(stderr,"Uso: %s <Porta>\n",argv[0]);
@@ -186,6 +194,7 @@ void* client_connection(void* threadarg)
 	int i;
 
 	char string[MAX_MSG_SIZE];
+	char command[15];
 
 	aux = (int*) threadarg;
 	conn_idx = *aux;
@@ -219,11 +228,18 @@ void* client_connection(void* threadarg)
 					exit(6);
 				}
 
-				sprintf(string, "O usuário %d enviou: %s", conn_idx, recvline);
+				sscanf(recvline, "%15s", command);
 
-				for (i = 0; i < number_of_connections; i++)
+				if (strcmp (command, "NICK") == 0)
+					sscanf(recvline, "%*s %s", nicks[conn_idx]);
+				else
 				{
-					write(connections[i], string, strlen(string));
+					sprintf(string, "%s enviou: %s", nicks[conn_idx], recvline);
+
+					for (i = 0; i < number_of_connections; i++)
+					{
+						write(connections[i], string, strlen(string));
+					}
 				}
 			}
 
