@@ -48,6 +48,7 @@
 #define MAX_CONNECTIONS 100
 #define MAX_MSG_SIZE 500
 #define MAX_NICK_SIZE 50
+#define MAX_TIME_STRING_SIZE 20
 
 typedef char nick[MAX_NICK_SIZE];
 
@@ -196,56 +197,75 @@ void* client_connection(void* threadarg)
 	char string[MAX_MSG_SIZE];
 	char command[15];
 
+	time_t rawtime;
+	struct tm * timeinfo;
+	char time_string[MAX_TIME_STRING_SIZE];
+
 	aux = (int*) threadarg;
 	conn_idx = *aux;
 
 	connfd = connections[conn_idx];
 
+	printf("[Uma conexao aberta]\n");
+	/* Já que está no processo filho, não precisa mais do socket
+	 * listenfd. Só o processo pai precisa deste socket. */
+	/*listenfd;*/
+	
+	/* Agora pode ler do socket e escrever no socket. Isto tem
+	 * que ser feito em sincronia com o cliente. Não faz sentido
+	 * ler sem ter o que ler. Ou seja, neste caso está sendo
+	 * considerado que o cliente vai enviar algo para o servidor.
+	 * O servidor vai processar o que tiver sido enviado e vai
+	 * enviar uma resposta para o cliente (Que precisará estar
+	 * esperando por esta resposta) 
+	 */
 
-			printf("[Uma conexao aberta]\n");
-			/* Já que está no processo filho, não precisa mais do socket
-			 * listenfd. Só o processo pai precisa deste socket. */
-			/*listenfd;*/
-			
-			/* Agora pode ler do socket e escrever no socket. Isto tem
-			 * que ser feito em sincronia com o cliente. Não faz sentido
-			 * ler sem ter o que ler. Ou seja, neste caso está sendo
-			 * considerado que o cliente vai enviar algo para o servidor.
-			 * O servidor vai processar o que tiver sido enviado e vai
-			 * enviar uma resposta para o cliente (Que precisará estar
-			 * esperando por esta resposta) 
-			 */
+	
+	/* ========================================================= */
+	/* TODO: É esta parte do código que terá que ser modificada
+	 * para que este servidor consiga interpretar comandos IRC	*/
+	while ((n=read(connfd, recvline, MAXLINE)) > 0) {
+		recvline[n]=0;
+		printf("[Cliente conectado na thread %d enviou] ", conn_idx);
+		if ((fputs(recvline,stdout)) == EOF) {
+			perror("fputs :( \n");
+			exit(6);
+		}
 
-			
-			/* ========================================================= */
-			/* TODO: É esta parte do código que terá que ser modificada
-			 * para que este servidor consiga interpretar comandos IRC	*/
-			while ((n=read(connfd, recvline, MAXLINE)) > 0) {
-				recvline[n]=0;
-				printf("[Cliente conectado na thread %d enviou] ", conn_idx);
-				if ((fputs(recvline,stdout)) == EOF) {
-					perror("fputs :( \n");
-					exit(6);
-				}
+		sscanf(recvline, "%15s", command);
 
-				sscanf(recvline, "%15s", command);
+		if (strcmp (command, "NICK") == 0)
+			sscanf(recvline, "%*s %s", nicks[conn_idx]);
+		else if (strcmp (command, "MACDATA") == 0)
+		{
+			time(&rawtime);
+			timeinfo = localtime(&rawtime);
 
-				if (strcmp (command, "NICK") == 0)
-					sscanf(recvline, "%*s %s", nicks[conn_idx]);
-				else
-				{
-					sprintf(string, "%s enviou: %s", nicks[conn_idx], recvline);
+			strftime(time_string, MAX_TIME_STRING_SIZE, "%d/%m/%Y\n", timeinfo);
+			write(connfd, time_string, strlen(time_string));
+		}
+		else if (strcmp (command, "MACHORA") == 0)
+		{
+			time(&rawtime);
+			timeinfo = localtime(&rawtime);
 
-					for (i = 0; i < number_of_connections; i++)
-					{
-						write(connections[i], string, strlen(string));
-					}
-				}
+			strftime(time_string, MAX_TIME_STRING_SIZE, "%X-%Z\n", timeinfo);
+			write(connfd, time_string, strlen(time_string));
+		}
+		else
+		{
+			sprintf(string, "%s enviou: %s", nicks[conn_idx], recvline);
+
+			for (i = 0; i < number_of_connections; i++)
+			{
+				write(connections[i], string, strlen(string));
 			}
+		}
+	}
 
-			/* Após ter feito toda a troca de informação com o cliente,
-			 * pode finalizar o processo filho */
-			printf("[Uma conexao fechada]\n");
-			close(connfd);
-			exit(0);
+	/* Após ter feito toda a troca de informação com o cliente,
+	 * pode finalizar o processo filho */
+	printf("[Uma conexao fechada]\n");
+	close(connfd);
+	exit(0);
 }
