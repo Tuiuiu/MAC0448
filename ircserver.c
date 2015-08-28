@@ -28,6 +28,9 @@
  */
 
 #define _GNU_SOURCE
+
+#include "users_list.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -42,18 +45,16 @@
 #include <pthread.h>
 
 #define LISTENQ 1
+
 #define MAXDATASIZE 100
 #define MAXLINE 4096
-
 #define MAX_CONNECTIONS 100
 #define MAX_MSG_SIZE 500
-#define MAX_NICK_SIZE 50
 #define MAX_TIME_STRING_SIZE 20
 
-typedef char nick[MAX_NICK_SIZE];
+#define STARTING_CHANNEL 0
 
-int connections[MAX_CONNECTIONS]; /* connection[i] é o descritor de arquivo da i-ésima conexão */
-nick nicks[MAX_CONNECTIONS]; /* nick[i] é o nick do usuário conectado na i-ésima conexão */
+User *users_list;
 
 int number_of_connections = 0;
 
@@ -69,19 +70,12 @@ int main (int argc, char **argv) {
 	 * é o processo pai */
 	/*pid_t childpid;*/	
 
-	int i;
-
 	pthread_t threads[MAX_CONNECTIONS];
 
-	int indexes[MAX_CONNECTIONS];
-
 	char string[100];
+	char string_aux[MAX_NICK_SIZE];
 
-	for (i = 0; i < MAX_CONNECTIONS; i++)
-	{
-		indexes[i] = i;
-		sprintf (nicks[i], "Anônimo %d", i);
-	}
+	users_list = list_init();
 	
 	if (argc != 2) {
 		fprintf(stderr,"Uso: %s <Porta>\n",argv[0]);
@@ -146,8 +140,9 @@ int main (int argc, char **argv) {
 			exit(5);
 		}
 
-		connections[number_of_connections] = connfd;
-		
+
+		sprintf (string_aux, "Anônimo %d", number_of_connections);
+
 		
 		/* Agora o servidor precisa tratar este cliente de forma
 		 * separada. Para isto é criado um processo filho usando a
@@ -160,16 +155,17 @@ int main (int argc, char **argv) {
 		/* Se o retorno da função fork for zero, é porque está no
 		 * processo filho. */
 
-		if (pthread_create(&threads[number_of_connections], NULL, client_connection, (void*) &indexes[number_of_connections]))
+		if (pthread_create(&threads[number_of_connections], NULL, client_connection,
+		    (void*) create(users_list, connfd, 0, number_of_connections, string_aux)))
 		{
-			printf ("Erro na criação da thread %d.\n", i);
+			printf ("Erro na criação da thread %d.\n", number_of_connections);
 			exit (EXIT_FAILURE);
 		}
 		
-		sprintf(string, "Conexão número %d existe\n", number_of_connections);
-		write(connections[number_of_connections], string, strlen(string)); 	
-
+		sprintf(string, "Conexão estabelecida\n");
+		write(connfd, string, strlen(string)); 	
 		number_of_connections++;
+
 		/**** PROCESSO PAI ****/
 		/* Se for o pai, a única coisa a ser feita é fechar o socket
 		 * connfd (ele é o socket do cliente específico que será tratado
@@ -183,16 +179,16 @@ int main (int argc, char **argv) {
 
 void* client_connection(void* threadarg)
 {
-	int conn_idx, *aux; /* conn_idx é o índice da thread */
+	/* user->id é o índice da thread */
 
 	/* Armazena linhas recebidas do cliente */
 	char	recvline[MAXLINE + 1];
 	/* Armazena o tamanho da string lida do cliente */
 	ssize_t  n;
 
-	int connfd;
+	User *aux;
 
-	int i;
+	User *user;
 
 	char string[MAX_MSG_SIZE];
 	char command[15];
@@ -201,10 +197,7 @@ void* client_connection(void* threadarg)
 	struct tm * timeinfo;
 	char time_string[MAX_TIME_STRING_SIZE];
 
-	aux = (int*) threadarg;
-	conn_idx = *aux;
-
-	connfd = connections[conn_idx];
+	user = (User*) threadarg;
 
 	printf("[Uma conexao aberta]\n");
 	/* Já que está no processo filho, não precisa mais do socket
@@ -224,9 +217,9 @@ void* client_connection(void* threadarg)
 	/* ========================================================= */
 	/* TODO: É esta parte do código que terá que ser modificada
 	 * para que este servidor consiga interpretar comandos IRC	*/
-	while ((n=read(connfd, recvline, MAXLINE)) > 0) {
+	while ((n=read(user->connfd, recvline, MAXLINE)) > 0) {
 		recvline[n]=0;
-		printf("[Cliente conectado na thread %d enviou] ", conn_idx);
+		printf("[Cliente conectado na thread %d enviou] ", user->id);
 		if ((fputs(recvline,stdout)) == EOF) {
 			perror("fputs :( \n");
 			exit(6);
@@ -235,14 +228,14 @@ void* client_connection(void* threadarg)
 		sscanf(recvline, "%15s", command);
 
 		if (strcmp (command, "NICK") == 0)
-			sscanf(recvline, "%*s %s", nicks[conn_idx]);
+			sscanf(recvline, "%*s %s", user->nickname);
 		else if (strcmp (command, "MACDATA") == 0)
 		{
 			time(&rawtime);
 			timeinfo = localtime(&rawtime);
 
 			strftime(time_string, MAX_TIME_STRING_SIZE, "%d/%m/%Y\n", timeinfo);
-			write(connfd, time_string, strlen(time_string));
+			write(user->connfd, time_string, strlen(time_string));
 		}
 		else if (strcmp (command, "MACHORA") == 0)
 		{
@@ -250,15 +243,15 @@ void* client_connection(void* threadarg)
 			timeinfo = localtime(&rawtime);
 
 			strftime(time_string, MAX_TIME_STRING_SIZE, "%X-%Z\n", timeinfo);
-			write(connfd, time_string, strlen(time_string));
+			write(user->connfd, time_string, strlen(time_string));
 		}
 		else
 		{
-			sprintf(string, "%s enviou: %s", nicks[conn_idx], recvline);
+			sprintf(string, "%s enviou: %s", user->nickname, recvline);
 
-			for (i = 0; i < number_of_connections; i++)
+			for (aux = users_list->next; aux != NULL; aux=aux->next)
 			{
-				write(connections[i], string, strlen(string));
+				write(aux->connfd, string, strlen(string));
 			}
 		}
 	}
@@ -266,6 +259,6 @@ void* client_connection(void* threadarg)
 	/* Após ter feito toda a troca de informação com o cliente,
 	 * pode finalizar o processo filho */
 	printf("[Uma conexao fechada]\n");
-	close(connfd);
+	close(user->connfd);
 	exit(0);
 }
