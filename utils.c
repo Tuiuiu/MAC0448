@@ -12,13 +12,13 @@
 #include <unistd.h>
 
 #include "cJSON.h"
+#include "utils.h"
 
 #define MAXLINE 4096
 #define WEATHERMSG 50
 
 float get_celsius (char* JSONinput);
 
-int get_weather (int connfd);
 
 float get_celsius(char* JSONinput) {
    cJSON *json;

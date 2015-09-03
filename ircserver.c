@@ -43,6 +43,7 @@
 #include <pthread.h>
 
 #include "users_list.h"
+#include "utils.h"
 
 #define LISTENQ 1
 
