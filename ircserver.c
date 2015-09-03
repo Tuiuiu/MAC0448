@@ -51,12 +51,15 @@
 #define MAX_CONNECTIONS 100
 #define MAX_MSG_SIZE 500
 #define MAX_TIME_STRING_SIZE 20
+#define MAX_CHANNEL_NAME_SIZE 20
 
-#define STARTING_CHANNEL 0
+
+char* channel_names[NUMBER_OF_CHANNELS] = {"Canal1", "Canal2"};
 
 User *users_list;
 
 int number_of_connections = 0;
+
 
 void* client_connection(void* arg);
 
@@ -229,7 +232,7 @@ void* client_connection(void* threadarg)
 		sprintf(command, " ");
 		sscanf(recvline, "%15s", command);
 
-		if (strcmp (command, "NICK") == 0)
+		if (strcmp(command, "NICK") == 0)
 			sscanf(recvline, "%*s %s", user->nickname);
 		else if (strcmp (command, "MACDATA") == 0)
 		{
@@ -239,7 +242,7 @@ void* client_connection(void* threadarg)
 			strftime(time_string, MAX_TIME_STRING_SIZE, "%d/%m/%Y\n", timeinfo);
 			write(user->connfd, time_string, strlen(time_string));
 		}
-		else if (strcmp (command, "MACHORA") == 0)
+		else if (strcmp(command, "MACHORA") == 0)
 		{
 			time(&rawtime);
 			timeinfo = localtime(&rawtime);
@@ -251,6 +254,33 @@ void* client_connection(void* threadarg)
 		{
 			if (get_weather(user->connfd) != 0)
 				perror("get weather :( \n");
+		}
+		else if (strcmp(command, "JOIN") == 0)
+		{
+			char channel1[MAX_CHANNEL_NAME_SIZE] = "";
+			char channel2[MAX_CHANNEL_NAME_SIZE] = "";
+			char confirmation_string[MAX_CHANNEL_NAME_SIZE + 20];
+			int i;
+
+
+			/*sscanf(recvline, "%*s %20[^,\n], %20s", channel1, channel2);*/
+			sscanf(recvline, "%*s %20[^,], %20[^,]", channel1, channel2);
+
+			printf ("channel1 = %s e channel2 = %s\n", channel1, channel2);
+
+			for (i = 0; i < NUMBER_OF_CHANNELS; i++)
+			{
+				/*printf ("channel1 = %s\n", channel1);*/
+				/*printf ("Canal %d é %s\n", i, channel_names[i]);*/
+				/*printf ("channel1 = %s, channel2 = %s\n", channel1, channel2);*/
+				printf ("%s = %s? %d\n", channel1, channel_names[i], strcmp(channel1, channel_names[i]));
+				if (strcmp(channel1, channel_names[i]) == 0 /*|| strcmp(channel2, channel_names[i]) == 0*/)
+				{
+					user->is_in_channel[i] = true;
+					sprintf (confirmation_string, "Conectado ao canal %s\n", channel_names[i]);
+					write(user->connfd, confirmation_string, strlen(confirmation_string));
+				}
+			}
 		}
 		else
 		{
