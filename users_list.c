@@ -1,7 +1,7 @@
-#include "users_list.h"
-
 #include <stdlib.h>
 #include <string.h>
+
+#include "users_list.h"
 
 User *list_init() 
 {

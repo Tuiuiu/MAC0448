@@ -1,10 +1,10 @@
 CC = gcc
 CFLAGS = -Wall -ansi -pedantic
-LDLIBS = -lpthread
+LDLIBS = -lpthread -lm
 
-ircserver: ircserver.o users_list.o
+ircserver: cJSON.o ircserver.o users_list.o utils.o
 
-users_list.o ircserver.u: users_list.h
+cJSON.o users_list.o utils.o ircserver.u: cJSON.h users_list.h
 
 .PHONY clean:
 	rm *.o ircserver

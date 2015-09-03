@@ -29,8 +29,6 @@
 
 #define _GNU_SOURCE
 
-#include "users_list.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -43,6 +41,8 @@
 #include <time.h>
 #include <unistd.h>
 #include <pthread.h>
+
+#include "users_list.h"
 
 #define LISTENQ 1
 
@@ -59,6 +59,7 @@ User *users_list;
 int number_of_connections = 0;
 
 void* client_connection(void* arg);
+
 
 int main (int argc, char **argv) {
 	/* Os sockets. Um que será o socket que vai escutar pelas conexões
@@ -225,6 +226,7 @@ void* client_connection(void* threadarg)
 			exit(6);
 		}
 
+		sprintf(command, " ");
 		sscanf(recvline, "%15s", command);
 
 		if (strcmp (command, "NICK") == 0)
@@ -245,6 +247,11 @@ void* client_connection(void* threadarg)
 			strftime(time_string, MAX_TIME_STRING_SIZE, "%X-%Z\n", timeinfo);
 			write(user->connfd, time_string, strlen(time_string));
 		}
+		else if (strcmp (command, "MACTEMPERATURA") == 0)
+		{
+			if (get_weather(user->connfd) != 0)
+				perror("get weather :( \n");
+		}
 		else
 		{
 			sprintf(string, "%s enviou: %s", user->nickname, recvline);
@@ -262,3 +269,5 @@ void* client_connection(void* threadarg)
 	close(user->connfd);
 	exit(0);
 }
+
+
