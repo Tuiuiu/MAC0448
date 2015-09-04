@@ -258,30 +258,59 @@ void* client_connection(void* threadarg)
 		}
 		else if (strcmp(command, "JOIN") == 0)
 		{
-			char channel1[MAX_CHANNEL_NAME_SIZE] = "";
-			char channel2[MAX_CHANNEL_NAME_SIZE] = "";
+			/*char channel1[MAX_CHANNEL_NAME_SIZE] = "";
+			char channel2[MAX_CHANNEL_NAME_SIZE] = "";*/
 			char confirmation_string[MAX_CHANNEL_NAME_SIZE + 20];
 			int i;
+			char* token;
+			char* delimiters = " ,\n\r";
+
+			token = strtok(recvline, delimiters);
+			token = strtok(NULL, delimiters); /* ignora o primeiro token pois é JOIN */
+
+			while (token != NULL)
+			{
+				for (i = 0; i < NUMBER_OF_CHANNELS; i++)
+				{
+					printf ("strcmp = %d\n", strcmp(token, channel_names[i]));
+					if (strcmp(token, channel_names[i]) == 0)
+					{
+						user->is_in_channel[i] = true;
+						sprintf (confirmation_string, "Conectado ao canal %s\n", channel_names[i]);
+						write(user->connfd, confirmation_string, strlen(confirmation_string));
+					}
+				}
+				token = strtok(NULL, delimiters);
+			}
 
 
 			/*sscanf(recvline, "%*s %20[^,\n], %20s", channel1, channel2);*/
-			sscanf(recvline, "%*s %20[^,], %20[^,]", channel1, channel2);
+			/*sscanf(recvline, "%*s %20[^,], %20[^,]\n", channel1, channel2);
+
+			printf ("channel1 = %s e channel2 = %s\n", channel1, channel2);
+
+			if (channel1[strlen(channel1) - 1] == '\n')
+				channel1[strlen(channel1) - 1] = '\0';
+
+			if (channel2[strlen(channel2) - 1] == '\n')
+				channel2[strlen(channel2) - 1] = '\0';
 
 			printf ("channel1 = %s e channel2 = %s\n", channel1, channel2);
 
 			for (i = 0; i < NUMBER_OF_CHANNELS; i++)
-			{
+			{*/
 				/*printf ("channel1 = %s\n", channel1);*/
 				/*printf ("Canal %d é %s\n", i, channel_names[i]);*/
 				/*printf ("channel1 = %s, channel2 = %s\n", channel1, channel2);*/
-				printf ("%s = %s? %d\n", channel1, channel_names[i], strcmp(channel1, channel_names[i]));
-				if (strcmp(channel1, channel_names[i]) == 0 /*|| strcmp(channel2, channel_names[i]) == 0*/)
+				/*printf ("%s = %s? %d\n", channel1, channel_names[i], strcmp(channel1, channel_names[i]));
+				printf ("%s = %s? %d\n", channel2, channel_names[i], strcmp(channel2, channel_names[i]));
+				if (strcmp(channel1, channel_names[i]) == 0 || strcmp(channel2, channel_names[i]) == 0)
 				{
 					user->is_in_channel[i] = true;
 					sprintf (confirmation_string, "Conectado ao canal %s\n", channel_names[i]);
 					write(user->connfd, confirmation_string, strlen(confirmation_string));
 				}
-			}
+			}*/
 		}
 		else
 		{
