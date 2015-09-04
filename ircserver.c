@@ -29,22 +29,32 @@
 
 #define _GNU_SOURCE
 
+/* Standard headers */
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
-#include <netdb.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
+
+/* Linux headers */
 #include <time.h>
 #include <unistd.h>
+#include <sys/types.h>
+
+ /* Network headers */
+#include <netdb.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+
+/* POSIX Thread headers */
 #include <pthread.h>
 
-#include "users_list.h"
-#include "utils.h"
+/* Internal headers */
+#include "Weather.h"
+#include "User_list.h"
+#include "Channel_list.h"
 
+/* Macros */
 #define LISTENQ 1
 
 #define MAXDATASIZE 100
@@ -52,20 +62,19 @@
 #define MAX_CONNECTIONS 100
 #define MAX_MSG_SIZE 500
 #define MAX_TIME_STRING_SIZE 20
-#define MAX_CHANNEL_NAME_SIZE 20
 
-
-char* channel_names[NUMBER_OF_CHANNELS] = {"Canal1", "Canal2"};
-
-User *users_list;
+/* Shared variables */
+User_list *user_list;
+Channel_list *channel_list;
 
 int number_of_connections = 0;
 
-
+/* Prototypes */
 void* client_connection(void* arg);
 void write_to_all (char* message);
+void start_channels (Channel_list *allchannels);
 
-
+/* Main */
 int main (int argc, char **argv) {
 	/* Os sockets. Um que será o socket que vai escutar pelas conexões
 	 * e o outro que vai ser o socket específico de cada conexão */
@@ -75,13 +84,17 @@ int main (int argc, char **argv) {
 	/* Retorno da função fork para saber quem é o processo filho e quem
 	 * é o processo pai */
 	/*pid_t childpid;*/	
+	User *aux_user;
 
 	pthread_t threads[MAX_CONNECTIONS];
 
 	char string[100];
 	char string_aux[MAX_NICK_SIZE];
 
-	users_list = list_init();
+	user_list = list_init();
+	channel_list = chn_list_init();
+
+	start_channels(channel_list);
 	
 	if (argc != 2) {
 		fprintf(stderr,"Uso: %s <Porta>\n",argv[0]);
@@ -161,8 +174,11 @@ int main (int argc, char **argv) {
 		/* Se o retorno da função fork for zero, é porque está no
 		 * processo filho. */
 
+
+		aux_user = new_user(connfd, number_of_connections, string_aux);
+		insert_user(user_list, aux_user);
 		if (pthread_create(&threads[number_of_connections], NULL, client_connection,
-		    (void*) create(users_list, connfd, 0, number_of_connections, string_aux)))
+		    (void*) aux_user))
 		{
 			printf ("Erro na criação da thread %d.\n", number_of_connections);
 			exit (EXIT_FAILURE);
@@ -181,7 +197,6 @@ int main (int argc, char **argv) {
 	}
 	exit(0);
 }
-
 
 void* client_connection(void* threadarg)
 {
@@ -262,7 +277,7 @@ void* client_connection(void* threadarg)
 			/*char channel1[MAX_CHANNEL_NAME_SIZE] = "";
 			char channel2[MAX_CHANNEL_NAME_SIZE] = "";*/
 			char confirmation_string[MAX_CHANNEL_NAME_SIZE + 20];
-			int i;
+			Channel_list *aux;
 			char* token;
 			char* delimiters = " ,\n\r";
 
@@ -271,13 +286,13 @@ void* client_connection(void* threadarg)
 
 			while (token != NULL)
 			{
-				for (i = 0; i < NUMBER_OF_CHANNELS; i++)
+				for (aux = user->channels->next; aux != NULL; aux = aux->next)
 				{
-					printf ("strcmp = %d\n", strcmp(token, channel_names[i]));
-					if (strcmp(token, channel_names[i]) == 0)
+					printf ("strcmp = %d\n", strcmp(token, aux->channel_data->name));
+					if (strcmp(token, aux->channel_data->name) == 0)
 					{
-						user->is_in_channel[i] = true;
-						sprintf (confirmation_string, "Conectado ao canal %s\n", channel_names[i]);
+						insert_channel(user->channels, aux->channel_data);
+						sprintf (confirmation_string, "Conectado ao canal %s\n", aux->channel_data->name);
 						write(user->connfd, confirmation_string, strlen(confirmation_string));
 					}
 				}
@@ -326,13 +341,34 @@ void* client_connection(void* threadarg)
 
 void write_to_all (char* message) /* envia message para todos os usuários */
 {
-	User *aux;
+	User_list *aux;
 
-	for (aux = users_list->next; aux != NULL; aux=aux->next)
+	for (aux = user_list->next; aux != NULL; aux=aux->next)
 	{	
 		/*char test[1000];
 		sprintf (test, "Você é o usuário %d (%s), e: ", aux->id, aux->nickname);
 		write(aux->connfd, test, strlen(test));*/
-		write(aux->connfd, message, strlen(message));
+		write(aux->user_data->connfd, message, strlen(message));
 	}
+}
+
+void start_channels (Channel_list *allchannels) 
+{
+	User_list *channel_users1, *channel_users2;
+	Channel *new_channel1, *new_channel2;
+
+	new_channel1 = malloc(sizeof(Channel));
+	new_channel2 = malloc(sizeof(Channel));
+
+	strcpy(new_channel1->name, "Canal1");
+	strcpy(new_channel2->name, "Canal2");
+
+	channel_users1 = list_init();
+	channel_users2 = list_init();
+
+	new_channel1->users = channel_users1;
+	new_channel2->users = channel_users2;
+
+	insert_channel(allchannels, new_channel1);
+	insert_channel(allchannels, new_channel2);
 }

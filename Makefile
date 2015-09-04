@@ -1,10 +1,22 @@
+BIN := ircserver
+
+CFLAGS = -ansi -Wall -pedantic
+LDFLAGS = -lpthread -lm
+
 CC = gcc
-CFLAGS = -Wall -ansi -pedantic
-LDLIBS = -lpthread -lm
 
-ircserver: cJSON.o ircserver.o users_list.o utils.o
+SRC := $(filter-out $(BIN).c,$(wildcard *.c))
+OBJ := $(SRC:.c=.o)
 
-cJSON.o users_list.o utils.o ircserver.u: cJSON.h users_list.h
+$(BIN): $(OBJ) $(BIN).o
+	$(CC) $^ -o $@ $(LDFLAGS)
 
-.PHONY clean:
-	rm *.o ircserver
+$(BIN).o: %.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ): %.o: %.c %.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+.PHONY: clean
+clean:
+	rm -f *.o $(BIN)

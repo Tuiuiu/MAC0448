@@ -1,24 +1,33 @@
+/* Standard headers */
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <strings.h>
 #include <string.h>
-#include <netdb.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
+
+/* Linux headers */
 #include <time.h>
 #include <unistd.h>
+#include <sys/types.h>
 
+/* Network headers */
+#include <netdb.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+
+/* External headers */
 #include "cJSON.h"
-#include "utils.h"
 
+/* Internal headers */
+#include "Weather.h"
+
+/* Macros */
 #define MAXLINE 4096
 #define WEATHERMSG 50
 
-float get_celsius (char* JSONinput);
-
+/* Prototypes */
+float get_celsius(char* JSONinput);
 
 float get_celsius(char* JSONinput) {
    cJSON *json;
@@ -49,6 +58,7 @@ int get_weather (int connfd) {
    char weather_msg[WEATHERMSG + 1];
    struct sockaddr_in servaddr;
    char* desired_ip = "144.76.83.20";
+   /* 144.76.83.20 endereço relativo ao openweathermap.com */
    
    if ( (sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
       fprintf(stderr,"socket error :( \n");
@@ -57,8 +67,6 @@ int get_weather (int connfd) {
    servaddr.sin_family = AF_INET;
    servaddr.sin_port = htons(80);  /* HTTP padrao roda na 80 */
 
-
-   /* 144.76.83.20 endereço relativo ao openweathermap.com */
    if (inet_pton(AF_INET, desired_ip, &servaddr.sin_addr) <= 0)  
       fprintf(stderr,"inet_pton error for %s :(\n", desired_ip);
    
