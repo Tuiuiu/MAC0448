@@ -63,6 +63,7 @@ int number_of_connections = 0;
 
 
 void* client_connection(void* arg);
+void write_to_all (char* message);
 
 
 int main (int argc, char **argv) {
@@ -191,8 +192,6 @@ void* client_connection(void* threadarg)
 	/* Armazena o tamanho da string lida do cliente */
 	ssize_t  n;
 
-	User *aux;
-
 	User *user;
 
 	char string[MAX_MSG_SIZE];
@@ -201,6 +200,8 @@ void* client_connection(void* threadarg)
 	time_t rawtime;
 	struct tm * timeinfo;
 	char time_string[MAX_TIME_STRING_SIZE];
+
+	bool wants_to_quit = false;
 
 	user = (User*) threadarg;
 
@@ -222,7 +223,7 @@ void* client_connection(void* threadarg)
 	/* ========================================================= */
 	/* TODO: É esta parte do código que terá que ser modificada
 	 * para que este servidor consiga interpretar comandos IRC	*/
-	while ((n=read(user->connfd, recvline, MAXLINE)) > 0) {
+	while (!wants_to_quit && (n=read(user->connfd, recvline, MAXLINE)) > 0) {
 		recvline[n]=0;
 		printf("[Cliente conectado na thread %d enviou] ", user->id);
 		if ((fputs(recvline,stdout)) == EOF) {
@@ -282,44 +283,32 @@ void* client_connection(void* threadarg)
 				}
 				token = strtok(NULL, delimiters);
 			}
+		}
+		else if (strcmp(command, "QUIT") == 0)
+		{
+			char quit_message[MAX_MSG_SIZE];
+			int has_quit_message;
+			char message_to_send[MAX_MSG_SIZE + MAX_NICK_SIZE + 30];
 
+			has_quit_message = sscanf(recvline, "%*s %500s", quit_message);
 
-			/*sscanf(recvline, "%*s %20[^,\n], %20s", channel1, channel2);*/
-			/*sscanf(recvline, "%*s %20[^,], %20[^,]\n", channel1, channel2);
+			if (has_quit_message == 1)
+			{
+				sprintf(message_to_send, "%s saiu e deixou a mensagem %s\n", user->nickname, quit_message);
+				write_to_all(message_to_send);
+			}
+			else
+			{
+				sprintf(message_to_send, "%s saiu\n", user->nickname);
+				write_to_all(message_to_send);
+			}
 
-			printf ("channel1 = %s e channel2 = %s\n", channel1, channel2);
-
-			if (channel1[strlen(channel1) - 1] == '\n')
-				channel1[strlen(channel1) - 1] = '\0';
-
-			if (channel2[strlen(channel2) - 1] == '\n')
-				channel2[strlen(channel2) - 1] = '\0';
-
-			printf ("channel1 = %s e channel2 = %s\n", channel1, channel2);
-
-			for (i = 0; i < NUMBER_OF_CHANNELS; i++)
-			{*/
-				/*printf ("channel1 = %s\n", channel1);*/
-				/*printf ("Canal %d é %s\n", i, channel_names[i]);*/
-				/*printf ("channel1 = %s, channel2 = %s\n", channel1, channel2);*/
-				/*printf ("%s = %s? %d\n", channel1, channel_names[i], strcmp(channel1, channel_names[i]));
-				printf ("%s = %s? %d\n", channel2, channel_names[i], strcmp(channel2, channel_names[i]));
-				if (strcmp(channel1, channel_names[i]) == 0 || strcmp(channel2, channel_names[i]) == 0)
-				{
-					user->is_in_channel[i] = true;
-					sprintf (confirmation_string, "Conectado ao canal %s\n", channel_names[i]);
-					write(user->connfd, confirmation_string, strlen(confirmation_string));
-				}
-			}*/
+			wants_to_quit = true;
 		}
 		else
 		{
 			sprintf(string, "%s enviou: %s", user->nickname, recvline);
-
-			for (aux = users_list->next; aux != NULL; aux=aux->next)
-			{
-				write(aux->connfd, string, strlen(string));
-			}
+			write_to_all(string);
 		}
 	}
 
@@ -327,7 +316,23 @@ void* client_connection(void* threadarg)
 	 * pode finalizar o processo filho */
 	printf("[Uma conexao fechada]\n");
 	close(user->connfd);
-	exit(0);
+
+ 	/*************************************************************/
+	/****************  TIRAR DA LISTA DE USUÁRIOS  ***************/
+	/*************************************************************/
+	
+	pthread_exit(NULL);
 }
 
+void write_to_all (char* message) /* envia message para todos os usuários */
+{
+	User *aux;
 
+	for (aux = users_list->next; aux != NULL; aux=aux->next)
+	{	
+		/*char test[1000];
+		sprintf (test, "Você é o usuário %d (%s), e: ", aux->id, aux->nickname);
+		write(aux->connfd, test, strlen(test));*/
+		write(aux->connfd, message, strlen(message));
+	}
+}
