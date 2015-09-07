@@ -358,8 +358,8 @@ void start_channels (Channel_list allchannels)
     User_list channel_users1, channel_users2;
     Channel new_channel1, new_channel2;
 
-    new_channel1 = malloc(sizeof(Channel));
-    new_channel2 = malloc(sizeof(Channel));
+    new_channel1 = malloc(sizeof(*new_channel1));
+    new_channel2 = malloc(sizeof(*new_channel2));
 
     strcpy(new_channel1->name, "Canal1");
     strcpy(new_channel2->name, "Canal2");
