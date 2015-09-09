@@ -160,7 +160,7 @@ int main (int argc, char **argv) {
         }
 
 
-        sprintf (string_aux, "Anônimo %d", number_of_connections);
+        sprintf (string_aux, "guest%d", number_of_connections);
 
         
         /* Agora o servidor precisa tratar este cliente de forma
@@ -276,7 +276,7 @@ void* client_connection(void* threadarg)
         {
             /*char channel1[MAX_CHANNEL_NAME_SIZE] = "";
             char channel2[MAX_CHANNEL_NAME_SIZE] = "";*/
-            char confirmation_string[MAX_CHANNEL_NAME_SIZE + 20];
+            char confirmation_string[MAX_NICK_SIZE + MAX_CHANNEL_NAME_SIZE + 30];
             Channel_list aux;
             char* token;
             char* delimiters = " ,\n\r";
@@ -286,17 +286,30 @@ void* client_connection(void* threadarg)
 
             while (token != NULL)
             {
-                for (aux = channel_list->next; aux != NULL; aux = aux->next)
-                {
-                    printf ("token: %s| canal: aux->channel->name: %s|\n", token, aux->channel->name);
-                    printf ("strcmp = %d\n", strcmp(token, aux->channel->name));
-                    if (strcmp(token, aux->channel->name) == 0)
-                    {
-                        insert_channel(user->channels, aux->channel);
-                        sprintf (confirmation_string, "Conectado ao canal %s\n", aux->channel->name);
-                        write(user->connfd, confirmation_string, strlen(confirmation_string));
-                    }
-                }
+            	if (token[0] == '#' || token[0] == '&') 
+            	{
+	               for (aux = channel_list->next; aux != NULL; aux = aux->next)
+	               {
+	                  printf ("token: %s| canal: aux->channel->name: %s|\n", token, aux->channel->name);
+	                  printf ("strcmp = %d\n", strcmp(token, aux->channel->name));
+	                  if (strcmp(token, aux->channel->name) == 0)
+	                  {
+	                     insert_channel(user->channels, aux->channel);
+	                     sprintf (confirmation_string, "Conectado ao canal %s\n", aux->channel->name);
+	                     write(user->connfd, confirmation_string, strlen(confirmation_string));
+	                  }
+	                  else
+	                  {
+	                  	insert_new_channel(channel_list, token, user);
+	                  }
+	               }
+             	}
+             	else
+             	{
+           			sprintf(confirmation_string, ":irc.ircserver.net 403 %s %s :No such channel\n", user->nickname, token);
+						write(user->connfd, confirmation_string, strlen(confirmation_string));
+
+             	}
                 token = strtok(NULL, delimiters);
             }
         }
@@ -320,6 +333,10 @@ void* client_connection(void* threadarg)
             }
 
             wants_to_quit = true;
+        }
+        else if (strcmp(command, "PRIVMSG") == 0)
+        {
+            sscanf(recvline, "%*s %s", user->nickname);
         }
         else
         {
@@ -361,8 +378,8 @@ void start_channels (Channel_list allchannels)
     new_channel1 = malloc(sizeof(*new_channel1));
     new_channel2 = malloc(sizeof(*new_channel2));
 
-    strcpy(new_channel1->name, "Canal1");
-    strcpy(new_channel2->name, "Canal2");
+    strcpy(new_channel1->name, "#Canal1");
+    strcpy(new_channel2->name, "#Canal2");
 
     channel_users1 = list_init();
     channel_users2 = list_init();
