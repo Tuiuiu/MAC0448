@@ -1,6 +1,7 @@
 /* Standard headers */
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 /* Internal headers */
 #include "User_list.h"
@@ -14,12 +15,50 @@ User_list list_init()
 	return ini;
 }
 
+void print_list (User_list list)
+{
+	User_list aux;
+	for (aux = list->next; aux != NULL; aux = aux->next)
+		printf ("%s ", aux->user->nickname);
+}
+
 User_list insert_user(User_list list, User user)
 {
 	User_list new_user;
+	/*printf("Antes de inserir:");
+	print_list (list);
+	printf ("\n");*/
 	new_user = malloc(sizeof (*new_user));
 	new_user->user = user;
 	new_user->next = list->next;
 	list->next = new_user;
+
+	/*printf("Depois de inserir:");
+	print_list (list);
+	printf ("\n");*/
+
 	return new_user;
+}
+
+int number_of_users (User_list list)
+{
+	User_list aux;
+	int number = 0;
+	
+	for (aux = list->next; aux != NULL; aux = aux->next)
+		number++;
+	
+	return number;
+}
+
+void users_list_to_string (User_list list, char* string) /* string (que precisa já estar alocada) terá os nicks dos usuários com um @ antes e separados por espaços */
+{
+	User_list aux;
+	char nickname_with_space_and_at[1 + MAX_NICK_SIZE + 1];
+
+	for (aux = list->next; aux != NULL; aux = aux->next)
+	{
+		sprintf (nickname_with_space_and_at, "@%s ", aux->user->nickname);
+		strcat (string, nickname_with_space_and_at);
+	}
 }

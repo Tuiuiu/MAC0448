@@ -20,4 +20,8 @@ User_list list_init();
 
 User_list insert_user(User_list list, User usr);
 
+int number_of_users (User_list list);
+
+void users_list_to_string (User_list list, char* string); /* string (que precisa já estar alocada) terá os nicks dos usuários separados por espaços */
+
 #endif /* _USER_LIST_H */

@@ -14,13 +14,13 @@ typedef struct user *User;
 struct user {
 	int				     connfd;
 	int 			     id;
-	char 			     nickname[MAX_NICK_SIZE];
+	char 			     nickname[1 + MAX_NICK_SIZE];
 	struct channel_list *channels;
 };
 
 User new_user(int usr_connfd,
               int usr_id,
-              char usr_nickname[MAX_NICK_SIZE]);
+              char usr_nickname[1 + MAX_NICK_SIZE]);
 
 /* void remove_user(User *previous_cel); */
 

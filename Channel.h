@@ -12,7 +12,7 @@ typedef struct channel *Channel;
 
 /* Structs */
 struct channel {
-    char      name[MAX_CHANNEL_NAME_SIZE];
+    char      name[1 + MAX_CHANNEL_NAME_SIZE];
     User_list users;
 }; 
 
