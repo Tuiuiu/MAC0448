@@ -72,6 +72,7 @@ int number_of_connections = 0;
 /* Prototypes */
 void* client_connection(void* arg);
 void write_to_all (char* message);
+void write_to_all_in_channel (Channel channel, char* message);
 void start_channels (Channel_list allchannels);
 
 /* Main */
@@ -276,7 +277,7 @@ void* client_connection(void* threadarg)
         {
             /*char channel1[MAX_CHANNEL_NAME_SIZE] = "";
             char channel2[MAX_CHANNEL_NAME_SIZE] = "";*/
-            char confirmation_string[MAX_NICK_SIZE + MAX_CHANNEL_NAME_SIZE + 30];
+            char confirmation_string[MAX_NICK_SIZE + MAX_CHANNEL_NAME_SIZE + 30] = " ";
             Channel_list aux;
             char* token;
             char* delimiters = " ,\n\r";
@@ -294,9 +295,13 @@ void* client_connection(void* threadarg)
 	                  printf ("strcmp = %d\n", strcmp(token, aux->channel->name));
 	                  if (strcmp(token, aux->channel->name) == 0)
 	                  {
-	                     insert_channel(user->channels, aux->channel);
-	                     sprintf (confirmation_string, "Conectado ao canal %s\n", aux->channel->name);
-	                     write(user->connfd, confirmation_string, strlen(confirmation_string));
+	                  	if (!exists_channel(user->channels, aux->channel->name))
+	                  	{
+	                     	insert_channel(user->channels, aux->channel);
+	                     	insert_user(aux->channel->users, user);
+	                     	sprintf (confirmation_string, "Conectado ao canal %s\n", aux->channel->name);
+	                     	write(user->connfd, confirmation_string, strlen(confirmation_string));
+	                  	}
 	                  }
 	                  else
 	                  {
@@ -336,7 +341,34 @@ void* client_connection(void* threadarg)
         }
         else if (strcmp(command, "PRIVMSG") == 0)
         {
-            sscanf(recvline, "%*s %s", user->nickname);
+        		char receiver[MAX_NICK_SIZE];
+        		char message[MAX_MSG_SIZE];
+        		Channel_list aux;
+        		User_list usraux;
+            sscanf(recvline, "%*s %s :%s", receiver, message);
+
+            if (receiver[0] == '#' || receiver[0] == '&')
+            {
+            	for (aux = channel_list->next; aux != NULL; aux = aux->next)
+            	{
+            		if (strcmp(aux->channel->name, receiver) == 0)
+            		{
+            			write_to_all_in_channel(aux->channel, message);
+            			break;
+            		}
+            	}
+            }
+            else 
+            {
+            	for (usraux = user_list->next; usraux != NULL; usraux = usraux->next)
+            	{
+            		if (strcmp(usraux->user->nickname, receiver) == 0)
+            		{
+            			write(usraux->user->connfd, message, strlen(message));
+            			break;
+            		}
+            	}
+            }
         }
         else
         {
@@ -368,6 +400,17 @@ void write_to_all (char* message) /* envia message para todos os usuários */
         write(aux->connfd, test, strlen(test));*/
         write(aux->user->connfd, message, strlen(message));
     }
+}
+
+void write_to_all_in_channel (Channel channel, char* message)
+{
+	 User_list aux;
+
+    for (aux = channel->users->next; aux != NULL; aux=aux->next)
+    {   
+    		printf("\n%s\n", aux->user->nickname);
+        write(aux->user->connfd, message, strlen(message));
+    }	
 }
 
 void start_channels (Channel_list allchannels) 
