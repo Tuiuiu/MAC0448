@@ -20,4 +20,6 @@ User_list list_init();
 
 User_list insert_user(User_list list, User usr);
 
+void remove_user(User_list list, char user_nick[MAX_NICK_SIZE]);
+
 #endif /* _USER_LIST_H */

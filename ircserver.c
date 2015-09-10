@@ -259,10 +259,7 @@ void* client_connection(void* threadarg)
 			sscanf(recvline, "%*s %s", user->nickname);
 			sprintf (confirmation_string, ":%s NICK :%s\n", old_nick, user->nickname);
 			write (user->connfd, confirmation_string, strlen(confirmation_string));
-
-
 		}
-
 		else if (strcmp (command, "MACDATA") == 0)
 		{
 			time(&rawtime);
@@ -326,6 +323,43 @@ void* client_connection(void* threadarg)
 					if (!channel_exists)
 					{
 						insert_new_channel(channel_list, token, user);
+					}
+				}
+				else
+				{
+					sprintf(confirmation_string, ":irc.ircserver.net 403 %s %s :No such channel\n", user->nickname, token);
+					write(user->connfd, confirmation_string, strlen(confirmation_string));
+				}
+				token = strtok(NULL, delimiters);
+			}
+		}
+		else if (strcmp(command, "PART") == 0)
+		{
+			char confirmation_string[MAX_NICK_SIZE + MAX_CHANNEL_NAME_SIZE + 30] = " ";
+			Channel removed;
+			
+			char* token;
+			char* delimiters = " ,\n\r";
+
+			token = strtok(recvline, delimiters);
+			token = strtok(NULL, delimiters); /* ignora o primeiro token pois é PART */
+			
+			while (token != NULL)
+			{
+				if (token[0] == '#' || token[0] == '&') 
+				{
+					removed = remove_channel(user->channels, token);
+					if (removed != NULL)
+					{
+						sprintf (confirmation_string, ":%s PART %s\n", user->nickname, removed->name);
+						write_to_all_in_channel(removed, confirmation_string);
+						remove_user(removed->users, user->nickname);
+						free (removed);
+					}
+					else
+					{
+						sprintf(confirmation_string, ":irc.ircserver.net 442 %s %s :You're not on that channel\n", user->nickname, token);
+						write(user->connfd, confirmation_string, strlen(confirmation_string));
 					}
 				}
 				else

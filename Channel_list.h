@@ -27,4 +27,6 @@ Channel_list insert_new_channel(Channel_list all_channels,
 
 bool exists_channel(Channel_list list, char *channel_name);
 
+Channel remove_channel(Channel_list list, char* channel_name);
+
 #endif /* _CHANNEL_LIST_H */
