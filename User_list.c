@@ -62,3 +62,19 @@ void users_list_to_string (User_list list, char* string) /* string (que precisa 
 		strcat (string, nickname_with_space_and_at);
 	}
 }
+
+void remove_user(User_list list, char user_nick[MAX_NICK_SIZE])
+{
+	User_list aux1, aux2;
+	aux1 = list; aux2 = list->next;
+	while (aux2 != NULL && aux2->user->nickname != user_nick) 
+	{
+		aux1 = aux2;
+		aux2 = aux1->next;
+	}
+	if (aux2 != NULL) 
+	{
+		aux1->next = aux2->next;
+		free(aux2);
+	}
+}

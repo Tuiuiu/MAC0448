@@ -58,3 +58,20 @@ bool exists_channel(Channel_list list, char* channel_name)
     }
     return false;
 }
+
+Channel remove_channel(Channel_list list, char* channel_name)
+{
+    Channel_list aux1, aux2;
+    aux1 = list; aux2 = list->next;
+    while (aux2 != NULL && strcmp(aux2->channel->name, channel_name) != 0) 
+    {
+        aux1 = aux2;
+        aux2 = aux1->next;
+    }
+    if (aux2 != NULL) 
+    {
+        aux1->next = aux2->next;
+        return aux2->channel;
+    }
+    else return NULL;
+}
