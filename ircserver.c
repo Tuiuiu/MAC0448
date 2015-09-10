@@ -253,9 +253,11 @@ void* client_connection(void* threadarg)
 		  if (strcmp(command, "NICK") == 0)
 		  {
 			char confirmation_string[MAX_NICK_SIZE + MAX_CHANNEL_NAME_SIZE + 30] = " ";
+            char old_nick[MAX_NICK_SIZE];
 
+            strcpy (old_nick, user->nickname);
 			sscanf(recvline, "%*s %s", user->nickname);
-			sprintf (confirmation_string, ":irc.ircserver.net NICK :%s\n", user->nickname);
+			sprintf (confirmation_string, ":%s NICK :%s\n", old_nick, user->nickname);
 			write (user->connfd, confirmation_string, strlen(confirmation_string));
 
 
@@ -311,14 +313,15 @@ void* client_connection(void* threadarg)
 								{
 									insert_channel (user->channels, aux->channel);
 									insert_user (aux->channel->users, user);
-                                    sprintf (confirmation_string, ":irc.ircserver.net JOIN %s\n", aux->channel->name);
-                                    write (user->connfd, confirmation_string, strlen(confirmation_string));
+                                    sprintf (confirmation_string, ":%s JOIN %s\n", user->nickname, aux->channel->name);
+                                    write_to_all_in_channel (aux->channel, confirmation_string);
 									sprintf (confirmation_string, ":irc.ircserver.net 331 %s %s :No topic is set\n", user->nickname, aux->channel->name);
 									write (user->connfd, confirmation_string, strlen(confirmation_string));
-									sprintf (confirmation_string, ":irc.ircserver.net 353 %s @ %s :@%s\n", user->nickname, aux->channel->name, user->nickname);
+									sprintf (confirmation_string, ":irc.ircserver.net 353 %s @ %s :@blabla\n", user->nickname, aux->channel->name);
 									write (user->connfd, confirmation_string, strlen(confirmation_string));
 									sprintf (confirmation_string, ":irc.ircserver.net 366 %s %s :End of /NAMES list.\n", user->nickname, aux->channel->name);
 									write (user->connfd, confirmation_string, strlen(confirmation_string));
+
 								}
 							}
 						}
