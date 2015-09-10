@@ -300,10 +300,14 @@ void* client_connection(void* threadarg)
 								channel_exists = true;
 								if (!exists_channel(user->channels, aux->channel->name))
 								{
-									insert_channel(user->channels, aux->channel);
-									insert_user(aux->channel->users, user);
-									sprintf (confirmation_string, "Conectado ao canal %s\n", aux->channel->name);
-									write(user->connfd, confirmation_string, strlen(confirmation_string));
+									insert_channel (user->channels, aux->channel);
+									insert_user (aux->channel->users, user);
+									sprintf (confirmation_string, ":irc.ircserver.net 331 %s %s :No topic is set\n", user->nickname, aux->channel->name);
+									write (user->connfd, confirmation_string, strlen(confirmation_string));
+									sprintf (confirmation_string, ":irc.ircserver.net 353 %s @ %s :@gabriel\n", user->nickname, aux->channel->name);
+									write (user->connfd, confirmation_string, strlen(confirmation_string));
+									sprintf (confirmation_string, ":irc.ircserver.net 366 %s %s :End of /NAMES list.\n", user->nickname, aux->channel->name);
+									write (user->connfd, confirmation_string, strlen(confirmation_string));
 								}
 							}
 						}
