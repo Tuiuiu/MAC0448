@@ -302,6 +302,8 @@ void* client_connection(void* threadarg)
 								{
 									insert_channel (user->channels, aux->channel);
 									insert_user (aux->channel->users, user);
+                                    sprintf (confirmation_string, ":irc.ircserver.net JOIN %s\n", aux->channel->name);
+                                    write (user->connfd, confirmation_string, strlen(confirmation_string));
 									sprintf (confirmation_string, ":irc.ircserver.net 331 %s %s :No topic is set\n", user->nickname, aux->channel->name);
 									write (user->connfd, confirmation_string, strlen(confirmation_string));
 									sprintf (confirmation_string, ":irc.ircserver.net 353 %s @ %s :@gabriel\n", user->nickname, aux->channel->name);
