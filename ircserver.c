@@ -251,7 +251,16 @@ void* client_connection(void* threadarg)
 		  sscanf(recvline, "%15s", command);
 
 		  if (strcmp(command, "NICK") == 0)
-				sscanf(recvline, "%*s %s", user->nickname);
+		  {
+			char confirmation_string[MAX_NICK_SIZE + MAX_CHANNEL_NAME_SIZE + 30] = " ";
+
+			sscanf(recvline, "%*s %s", user->nickname);
+			sprintf (confirmation_string, ":irc.ircserver.net NICK :%s\n", user->nickname);
+			write (user->connfd, confirmation_string, strlen(confirmation_string));
+
+
+		  }
+
 		  else if (strcmp (command, "MACDATA") == 0)
 		  {
 				time(&rawtime);
@@ -306,7 +315,7 @@ void* client_connection(void* threadarg)
                                     write (user->connfd, confirmation_string, strlen(confirmation_string));
 									sprintf (confirmation_string, ":irc.ircserver.net 331 %s %s :No topic is set\n", user->nickname, aux->channel->name);
 									write (user->connfd, confirmation_string, strlen(confirmation_string));
-									sprintf (confirmation_string, ":irc.ircserver.net 353 %s @ %s :@gabriel\n", user->nickname, aux->channel->name);
+									sprintf (confirmation_string, ":irc.ircserver.net 353 %s @ %s :@%s\n", user->nickname, aux->channel->name, user->nickname);
 									write (user->connfd, confirmation_string, strlen(confirmation_string));
 									sprintf (confirmation_string, ":irc.ircserver.net 366 %s %s :End of /NAMES list.\n", user->nickname, aux->channel->name);
 									write (user->connfd, confirmation_string, strlen(confirmation_string));
@@ -444,3 +453,5 @@ void start_channels (Channel_list allchannels)
 	 insert_channel(allchannels, new_channel1);
 	 insert_channel(allchannels, new_channel2);
 }
+
+/* void imprime_usuarios (User_list users_list) */
