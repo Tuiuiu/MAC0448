@@ -77,31 +77,31 @@ void start_channels (Channel_list allchannels);
 
 /* Main */
 int main (int argc, char **argv) {
-	 /* Os sockets. Um que será o socket que vai escutar pelas conexões
-	  * e o outro que vai ser o socket específico de cada conexão */
-	 int listenfd, connfd;
-	 /* Informações sobre o socket (endereço e porta) ficam nesta struct */
-	 struct sockaddr_in servaddr;
-	 /* Retorno da função fork para saber quem é o processo filho e quem
-	  * é o processo pai */
-	 /*pid_t childpid;*/ 
-	 User aux_user;
+	/* Os sockets. Um que será o socket que vai escutar pelas conexões
+	 * e o outro que vai ser o socket específico de cada conexão */
+	int listenfd, connfd;
+	/* Informações sobre o socket (endereço e porta) ficam nesta struct */
+	struct sockaddr_in servaddr;
+	/* Retorno da função fork para saber quem é o processo filho e quem
+	 * é o processo pai */
+	/*pid_t childpid;*/ 
+	User aux_user;
 
-	 pthread_t threads[MAX_CONNECTIONS];
+	pthread_t threads[MAX_CONNECTIONS];
 
-	 char string[100];
-	 char string_aux[MAX_NICK_SIZE];
+	char string[100];
+	char string_aux[MAX_NICK_SIZE];
 
-	 user_list = list_init();
-	 channel_list = chn_list_init();
+	user_list = list_init();
+	channel_list = chn_list_init();
 
-	 start_channels(channel_list);
+	start_channels(channel_list);
 	 
-	 if (argc != 2) {
-		  fprintf(stderr,"Uso: %s <Porta>\n",argv[0]);
-		  fprintf(stderr,"Vai rodar um servidor de echo na porta <Porta> TCP\n");
-		  exit(1);
-	 }
+	if (argc != 2) {
+		fprintf(stderr,"Uso: %s <Porta>\n",argv[0]);
+		fprintf(stderr,"Vai rodar um servidor de echo na porta <Porta> TCP\n");
+		exit(1);
+	}
 
 	 /* Criação de um socket. Eh como se fosse um descritor de arquivo. Eh
 	  * possivel fazer operacoes como read, write e close. Neste
@@ -109,10 +109,10 @@ int main (int argc, char **argv) {
 	  * que vai usar TCP (por causa do SOCK_STREAM), já que o IRC
 	  * funciona sobre TCP, e será usado para uma aplicação convencional sobre
 	  * a Internet (por causa do número 0) */
-	 if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-		  perror("socket :(\n");
-		  exit(2);
-	 }
+	if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+		perror("socket :(\n");
+		exit(2);
+	}
 
 	 /* Agora é necessário informar os endereços associados a este
 	  * socket. É necessário informar o endereço / interface e a porta,
@@ -124,30 +124,30 @@ int main (int argc, char **argv) {
 	  * qual a porta. Neste caso será a porta que foi passada como
 	  * argumento no shell (atoi(argv[1]))
 	  */
-	 bzero(&servaddr, sizeof(servaddr));
-	 servaddr.sin_family     = AF_INET;
-	 servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	 servaddr.sin_port         = htons(atoi(argv[1]));
-	 if (bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr)) == -1) {
-		  perror("bind :(\n");
-		  exit(3);
-	 }
+	bzero(&servaddr, sizeof(servaddr));
+	servaddr.sin_family     = AF_INET;
+	servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	servaddr.sin_port         = htons(atoi(argv[1]));
+	if (bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr)) == -1) {
+		perror("bind :(\n");
+		exit(3);
+	}
 
 	 /* Como este código é o código de um servidor, o socket será um
 	  * socket passivo. Para isto é necessário chamar a função listen
 	  * que define que este é um socket de servidor que ficará esperando
 	  * por conexões nos endereços definidos na função bind. */
-	 if (listen(listenfd, LISTENQ) == -1) {
-		  perror("listen :(\n");
-		  exit(4);
-	 }
+	if (listen(listenfd, LISTENQ) == -1) {
+		perror("listen :(\n");
+		exit(4);
+	}
 
-	 printf("[Servidor no ar. Aguardando conexoes na porta %s]\n",argv[1]);
-	 printf("[Para finalizar, pressione CTRL+c ou rode um kill ou killall]\n");
+	printf("[Servidor no ar. Aguardando conexoes na porta %s]\n",argv[1]);
+	printf("[Para finalizar, pressione CTRL+c ou rode um kill ou killall]\n");
 	 
 	 /* O servidor no final das contas é um loop infinito de espera por
 	  * conexões e processamento de cada uma individualmente */
-	 for (;;) {
+	for (;;) {
 		  /* O socket inicial que foi criado é o socket que vai aguardar
 			* pela conexão na porta especificada. Mas pode ser que existam
 			* diversos clientes conectando no servidor. Por isso deve-se
@@ -155,103 +155,103 @@ int main (int argc, char **argv) {
 			* da fila de conexões que foram aceitas no socket listenfd e
 			* vai criar um socket específico para esta conexão. O descritor
 			* deste novo socket é o retorno da função accept. */
-		  if ((connfd = accept(listenfd, (struct sockaddr *) NULL, NULL)) == -1 ) {
-				perror("accept :(\n");
-				exit(5);
-		  }
+		if ((connfd = accept(listenfd, (struct sockaddr *) NULL, NULL)) == -1 ) {
+			perror("accept :(\n");
+			exit(5);
+		}
 
 
-		  sprintf (string_aux, "guest%d", number_of_connections);
+		sprintf (string_aux, "guest%d", number_of_connections);
 
 		  
-		  /* Agora o servidor precisa tratar este cliente de forma
-			* separada. Para isto é criado um processo filho usando a
-			* função fork. O processo vai ser uma cópia deste. Depois da
-			* função fork, os dois processos (pai e filho) estarão no mesmo
-			* ponto do código, mas cada um terá um PID diferente. Assim é
-			* possível diferenciar o que cada processo terá que fazer. O
-			* filho tem que processar a requisição do cliente. O pai tem
-			* que voltar no loop para continuar aceitando novas conexões */
-		  /* Se o retorno da função fork for zero, é porque está no
-			* processo filho. */
+		/* Agora o servidor precisa tratar este cliente de forma
+		 * separada. Para isto é criado um processo filho usando a
+		 * função fork. O processo vai ser uma cópia deste. Depois da
+		 * função fork, os dois processos (pai e filho) estarão no mesmo
+		 * ponto do código, mas cada um terá um PID diferente. Assim é
+		 * possível diferenciar o que cada processo terá que fazer. O
+		 * filho tem que processar a requisição do cliente. O pai tem
+		 * que voltar no loop para continuar aceitando novas conexões */
+		/* Se o retorno da função fork for zero, é porque está no
+		 * processo filho. */
 
 
-		  aux_user = new_user(connfd, number_of_connections, string_aux);
-		  insert_user(user_list, aux_user);
-		  if (pthread_create(&threads[number_of_connections], NULL, client_connection,
-				(void*) aux_user))
-		  {
-				printf ("Erro na criação da thread %d.\n", number_of_connections);
-				exit (EXIT_FAILURE);
-		  }
+		aux_user = new_user(connfd, number_of_connections, string_aux);
+		insert_user(user_list, aux_user);
+		if (pthread_create(&threads[number_of_connections], NULL, client_connection,
+			(void*) aux_user))
+		{
+			printf ("Erro na criação da thread %d.\n", number_of_connections);
+			exit (EXIT_FAILURE);
+		}
 		  
-		  sprintf(string, "Conexão estabelecida\n");
-		  write(connfd, string, strlen(string));  
-		  number_of_connections++;
+		sprintf(string, "Conexão estabelecida\n");
+		write(connfd, string, strlen(string));  
+		number_of_connections++;
 
-		  /**** PROCESSO PAI ****/
-		  /* Se for o pai, a única coisa a ser feita é fechar o socket
-			* connfd (ele é o socket do cliente específico que será tratado
-			* pelo processo filho) */
-				/*write(connfd, "teste", strlen("teste"));
-		  close(connfd);*/
-	 }
-	 exit(0);
+		/**** PROCESSO PAI ****/
+		/* Se for o pai, a única coisa a ser feita é fechar o socket
+		 * connfd (ele é o socket do cliente específico que será tratado
+		 * pelo processo filho) */
+		/*write(connfd, "teste", strlen("teste"));
+		close(connfd);*/
+	}
+	exit(0);
 }
 
 void* client_connection(void* threadarg)
 {
-	 /* user->id é o índice da thread */
+	/* user->id é o índice da thread */
 
-	 /* Armazena linhas recebidas do cliente */
-	 char    recvline[MAXLINE + 1];
-	 /* Armazena o tamanho da string lida do cliente */
-	 ssize_t  n;
+	/* Armazena linhas recebidas do cliente */
+	char    recvline[MAXLINE + 1];
+	/* Armazena o tamanho da string lida do cliente */
+	ssize_t  n;
 
-	 User user;
+	User user;
 
-	 char string[MAX_MSG_SIZE];
-	 char command[15];
+	char string[MAX_MSG_SIZE];
+	char command[15];
 
-	 time_t rawtime;
-	 struct tm * timeinfo;
-	 char time_string[MAX_TIME_STRING_SIZE];
+	time_t rawtime;
+	struct tm * timeinfo;
+	char time_string[MAX_TIME_STRING_SIZE];
 
-	 bool wants_to_quit = false;
+	bool wants_to_quit = false;
 
-	 user = (User) threadarg;
+	user = (User) threadarg;
 
-	 printf("[Uma conexao aberta]\n");
-	 /* Já que está no processo filho, não precisa mais do socket
-	  * listenfd. Só o processo pai precisa deste socket. */
-	 /*listenfd;*/
+	printf("[Uma conexao aberta]\n");
+	/* Já que está no processo filho, não precisa mais do socket
+	 * listenfd. Só o processo pai precisa deste socket. */
+	/*listenfd;*/
 	 
-	 /* Agora pode ler do socket e escrever no socket. Isto tem
-	  * que ser feito em sincronia com o cliente. Não faz sentido
-	  * ler sem ter o que ler. Ou seja, neste caso está sendo
-	  * considerado que o cliente vai enviar algo para o servidor.
-	  * O servidor vai processar o que tiver sido enviado e vai
-	  * enviar uma resposta para o cliente (Que precisará estar
-	  * esperando por esta resposta) 
-	  */
+	/* Agora pode ler do socket e escrever no socket. Isto tem
+	 * que ser feito em sincronia com o cliente. Não faz sentido
+	 * ler sem ter o que ler. Ou seja, neste caso está sendo
+	 * considerado que o cliente vai enviar algo para o servidor.
+	 * O servidor vai processar o que tiver sido enviado e vai
+	 * enviar uma resposta para o cliente (Que precisará estar
+	 * esperando por esta resposta) 
+	 */
 
 	 
-	 /* ========================================================= */
-	 /* TODO: É esta parte do código que terá que ser modificada
-	  * para que este servidor consiga interpretar comandos IRC  */
-	 while (!wants_to_quit && (n=read(user->connfd, recvline, MAXLINE)) > 0) {
-		  recvline[n]=0;
-		  printf("[Cliente conectado na thread %d enviou] ", user->id);
-		  if ((fputs(recvline,stdout)) == EOF) {
-				perror("fputs :( \n");
-				exit(6);
-		  }
+	/* ========================================================= */
+	/* TODO: É esta parte do código que terá que ser modificada
+	 * para que este servidor consiga interpretar comandos IRC  */
+	while (!wants_to_quit && (n=read(user->connfd, recvline, MAXLINE)) > 0) {
+		recvline[n]=0;
+		printf("[Cliente conectado na thread %d enviou] ", user->id);
+		if ((fputs(recvline,stdout)) == EOF) {
+			perror("fputs :( \n");
+			exit(6);
+		}
 
-		  sprintf(command, " ");
-		  sscanf(recvline, "%15s", command);
+		sprintf(command, " ");
+		sscanf(recvline, "%15s", command);
 
-		  if (strcmp(command, "NICK") == 0)
-		  {
+		if (strcmp(command, "NICK") == 0)
+		{
 			char confirmation_string[MAX_NICK_SIZE + MAX_CHANNEL_NAME_SIZE + 30] = " ";
             char old_nick[MAX_NICK_SIZE];
 
@@ -261,179 +261,175 @@ void* client_connection(void* threadarg)
 			write (user->connfd, confirmation_string, strlen(confirmation_string));
 
 
-		  }
+		}
 
-		  else if (strcmp (command, "MACDATA") == 0)
-		  {
-				time(&rawtime);
-				timeinfo = localtime(&rawtime);
+		else if (strcmp (command, "MACDATA") == 0)
+		{
+			time(&rawtime);
+			timeinfo = localtime(&rawtime);
 
-				strftime(time_string, MAX_TIME_STRING_SIZE, "%d/%m/%Y\n", timeinfo);
-				write(user->connfd, time_string, strlen(time_string));
-		  }
-		  else if (strcmp(command, "MACHORA") == 0)
-		  {
-				time(&rawtime);
-				timeinfo = localtime(&rawtime);
+			strftime(time_string, MAX_TIME_STRING_SIZE, "%d/%m/%Y\n", timeinfo);
+			write(user->connfd, time_string, strlen(time_string));
+		}
+		else if (strcmp(command, "MACHORA") == 0)
+		{
+			time(&rawtime);
+			timeinfo = localtime(&rawtime);
 
-				strftime(time_string, MAX_TIME_STRING_SIZE, "%X-%Z\n", timeinfo);
-				write(user->connfd, time_string, strlen(time_string));
-		  }
-		  else if (strcmp (command, "MACTEMPERATURA") == 0)
-		  {
-				if (get_weather(user->connfd) != 0)
-					 perror("get weather :( \n");
-		  }
-		  else if (strcmp(command, "JOIN") == 0)
-		  {
-				/*char channel1[MAX_CHANNEL_NAME_SIZE] = "";
-				char channel2[MAX_CHANNEL_NAME_SIZE] = "";*/
-				char confirmation_string[MAX_NICK_SIZE + MAX_CHANNEL_NAME_SIZE + 30] = " ";
-				Channel_list aux;
-				char* token;
-				char* delimiters = " ,\n\r";
-				bool channel_exists;
+			strftime(time_string, MAX_TIME_STRING_SIZE, "%X-%Z\n", timeinfo);
+			write(user->connfd, time_string, strlen(time_string));
+		}
+		else if (strcmp (command, "MACTEMPERATURA") == 0)
+		{
+			if (get_weather(user->connfd) != 0)
+				perror("get weather :( \n");
+		}
+ 		else if (strcmp(command, "JOIN") == 0)
+		{
+			/*char channel1[MAX_CHANNEL_NAME_SIZE] = "";
+			char channel2[MAX_CHANNEL_NAME_SIZE] = "";*/
+			char confirmation_string[MAX_NICK_SIZE + MAX_CHANNEL_NAME_SIZE + 30] = " ";
+			Channel_list aux;
+			char* token;
+			char* delimiters = " ,\n\r";
+			bool channel_exists;
 
-				token = strtok(recvline, delimiters);
-				token = strtok(NULL, delimiters); /* ignora o primeiro token pois é JOIN */
-
-				while (token != NULL)
-				{
-					channel_exists = false;
-					if (token[0] == '#' || token[0] == '&') 
-					{
-						for (aux = channel_list->next; aux != NULL; aux = aux->next)
-						{
-							printf ("token: %s| canal: aux->channel->name: %s|\n", token, aux->channel->name);
-							printf ("strcmp = %d\n", strcmp(token, aux->channel->name));
-							if (strcmp(token, aux->channel->name) == 0)
-							{
-								channel_exists = true;
-								if (!exists_channel(user->channels, aux->channel->name))
-								{
-									insert_channel (user->channels, aux->channel);
-									insert_user (aux->channel->users, user);
-                                    sprintf (confirmation_string, ":%s JOIN %s\n", user->nickname, aux->channel->name);
-                                    write_to_all_in_channel (aux->channel, confirmation_string);
-									sprintf (confirmation_string, ":irc.ircserver.net 331 %s %s :No topic is set\n", user->nickname, aux->channel->name);
-									write (user->connfd, confirmation_string, strlen(confirmation_string));
-									sprintf (confirmation_string, ":irc.ircserver.net 353 %s @ %s :@blabla\n", user->nickname, aux->channel->name);
-									write (user->connfd, confirmation_string, strlen(confirmation_string));
-									sprintf (confirmation_string, ":irc.ircserver.net 366 %s %s :End of /NAMES list.\n", user->nickname, aux->channel->name);
-									write (user->connfd, confirmation_string, strlen(confirmation_string));
-
-								}
-							}
-						}
-						if (!channel_exists)
-						{
-							insert_new_channel(channel_list, token, user);
-						}
-					}
-					else
-					{
-						sprintf(confirmation_string, ":irc.ircserver.net 403 %s %s :No such channel\n", user->nickname, token);
-						write(user->connfd, confirmation_string, strlen(confirmation_string));
-
-					}
-					 token = strtok(NULL, delimiters);
-				}
-		  }
-		  else if (strcmp(command, "QUIT") == 0)
-		  {
-				char quit_message[MAX_MSG_SIZE];
-				int has_quit_message;
-				char message_to_send[MAX_MSG_SIZE + MAX_NICK_SIZE + 30];
-
-				has_quit_message = sscanf(recvline, "%*s %500s", quit_message);
-
-				if (has_quit_message == 1)
-				{
-					 sprintf(message_to_send, "%s saiu e deixou a mensagem %s\n", user->nickname, quit_message);
-					 write_to_all(message_to_send);
-				}
-				else
-				{
-					 sprintf(message_to_send, "%s saiu\n", user->nickname);
-					 write_to_all(message_to_send);
-				}
-
-				wants_to_quit = true;
-		  }
-		  else if (strcmp(command, "PRIVMSG") == 0)
-		  {
-				char receiver[MAX_NICK_SIZE];
-				char message[MAX_MSG_SIZE] = " ";
-				Channel_list aux;
-				User_list usraux;
-				sscanf(recvline, "%*s %s :%[^\n\r]", receiver, message);
-				printf("message: %s\n", message);
-
-				if (receiver[0] == '#' || receiver[0] == '&')
+			token = strtok(recvline, delimiters);
+			token = strtok(NULL, delimiters); /* ignora o primeiro token pois é JOIN */
+			while (token != NULL)
+			{
+				channel_exists = false;
+				if (token[0] == '#' || token[0] == '&') 
 				{
 					for (aux = channel_list->next; aux != NULL; aux = aux->next)
 					{
-						if (strcmp(aux->channel->name, receiver) == 0)
+						printf ("token: %s| canal: aux->channel->name: %s|\n", token, aux->channel->name);
+						printf ("strcmp = %d\n", strcmp(token, aux->channel->name));
+						if (strcmp(token, aux->channel->name) == 0)
 						{
-							sprintf(message, "%s\n", message);
-							write_to_all_in_channel(aux->channel, message);
-							break;
+							channel_exists = true;
+							if (!exists_channel(user->channels, aux->channel->name))
+							{
+								insert_channel (user->channels, aux->channel);
+								insert_user (aux->channel->users, user);
+                                sprintf (confirmation_string, ":%s JOIN %s\n", user->nickname, aux->channel->name);
+                                write_to_all_in_channel (aux->channel, confirmation_string);
+								sprintf (confirmation_string, ":irc.ircserver.net 331 %s %s :No topic is set\n", user->nickname, aux->channel->name);
+								write (user->connfd, confirmation_string, strlen(confirmation_string));
+								sprintf (confirmation_string, ":irc.ircserver.net 353 %s @ %s :@blabla\n", user->nickname, aux->channel->name);
+								write (user->connfd, confirmation_string, strlen(confirmation_string));
+								sprintf (confirmation_string, ":irc.ircserver.net 366 %s %s :End of /NAMES list.\n", user->nickname, aux->channel->name);
+								write (user->connfd, confirmation_string, strlen(confirmation_string));
+							}
 						}
 					}
-				}
-				else 
-				{
-					for (usraux = user_list->next; usraux != NULL; usraux = usraux->next)
+					if (!channel_exists)
 					{
-						if (strcmp(usraux->user->nickname, receiver) == 0)
-						{
-							write(usraux->user->connfd, message, strlen(message));
-							break;
-						}
+						insert_new_channel(channel_list, token, user);
 					}
 				}
-		  }
-		  else
-		  {
-				sprintf(string, "%s enviou: %s", user->nickname, recvline);
-				write_to_all(string);
-		  }
-	 }
+				else
+				{
+					sprintf(confirmation_string, ":irc.ircserver.net 403 %s %s :No such channel\n", user->nickname, token);
+					write(user->connfd, confirmation_string, strlen(confirmation_string));
+				}
+				token = strtok(NULL, delimiters);
+			}
+		}
+		else if (strcmp(command, "QUIT") == 0)
+		{
+			char quit_message[MAX_MSG_SIZE];
+			int has_quit_message;
+			char message_to_send[MAX_MSG_SIZE + MAX_NICK_SIZE + 30];
 
-	 /* Após ter feito toda a troca de informação com o cliente,
-	  * pode finalizar o processo filho */
-	 printf("[Uma conexao fechada]\n");
-	 close(user->connfd);
+			has_quit_message = sscanf(recvline, "%*s %500s", quit_message);
 
-	 /*************************************************************/
-	 /****************  TIRAR DA LISTA DE USUÁRIOS  ***************/
-	 /*************************************************************/
+			if (has_quit_message == 1)
+			{
+				sprintf(message_to_send, "%s saiu e deixou a mensagem %s\n", user->nickname, quit_message);
+				write_to_all(message_to_send);
+			}
+			else
+			{
+				sprintf(message_to_send, "%s saiu\n", user->nickname);
+				write_to_all(message_to_send);
+			}
+			wants_to_quit = true;
+		}
+		else if (strcmp(command, "PRIVMSG") == 0)
+		{
+			char receiver[MAX_NICK_SIZE];
+			char message[MAX_MSG_SIZE] = " ";
+			Channel_list aux;
+			User_list usraux;
+			sscanf(recvline, "%*s %s :%[^\n\r]", receiver, message);
+			printf("message: %s\n", message);
+
+			if (receiver[0] == '#' || receiver[0] == '&')
+			{
+				for (aux = channel_list->next; aux != NULL; aux = aux->next)
+				{
+					if (strcmp(aux->channel->name, receiver) == 0)
+					{
+						sprintf(message, "%s\n", message);
+						write_to_all_in_channel(aux->channel, message);
+						break;
+					}
+				}
+			}
+			else 
+			{
+				for (usraux = user_list->next; usraux != NULL; usraux = usraux->next)
+				{
+					if (strcmp(usraux->user->nickname, receiver) == 0)
+					{
+						write(usraux->user->connfd, message, strlen(message));
+						break;
+					}
+				}
+			}
+		}
+		else
+		{
+			sprintf(string, "%s enviou: %s", user->nickname, recvline);
+			write_to_all(string);
+	 	}
+	}
+
+	/* Após ter feito toda a troca de informação com o cliente,
+	 * pode finalizar o processo filho */
+	printf("[Uma conexao fechada]\n");
+	close(user->connfd);
+
+	/*************************************************************/
+	/****************  TIRAR DA LISTA DE USUÁRIOS  ***************/
+	/*************************************************************/
 	 
-	 pthread_exit(NULL);
+	pthread_exit(NULL);
 }
 
 void write_to_all (char* message) /* envia message para todos os usuários */
 {
-	 User_list aux;
+	User_list aux;
 
-	 for (aux = user_list->next; aux != NULL; aux=aux->next)
-	 {   
-		  /*char test[1000];
-		  sprintf (test, "Você é o usuário %d (%s), e: ", aux->id, aux->nickname);
-		  write(aux->connfd, test, strlen(test));*/
-		  write(aux->user->connfd, message, strlen(message));
-	 }
+	for (aux = user_list->next; aux != NULL; aux=aux->next)
+	{   
+		/*char test[1000];
+		sprintf (test, "Você é o usuário %d (%s), e: ", aux->id, aux->nickname);
+		write(aux->connfd, test, strlen(test));*/
+		write(aux->user->connfd, message, strlen(message));
+	}
 }
 
 void write_to_all_in_channel (Channel channel, char* message)
 {
-	 User_list aux;
+	User_list aux;
 
-	 for (aux = channel->users->next; aux != NULL; aux=aux->next)
-	 {   
-			printf("\n%s\n", aux->user->nickname);
-		  write(aux->user->connfd, message, strlen(message));
-	 }	
+	for (aux = channel->users->next; aux != NULL; aux=aux->next)
+	{   
+		printf("\n%s\n", aux->user->nickname);
+		write(aux->user->connfd, message, strlen(message));
+	}	
 }
 
 void start_channels (Channel_list allchannels) 
