@@ -30,6 +30,7 @@ Channel_list insert_new_channel(Channel_list all_channels,
 {
     User_list channel_users;
     Channel new_channel;
+    Channel_list chn_list;
 
     new_channel = malloc(sizeof(*new_channel));
     strcpy(new_channel->name, channel_name);
@@ -37,6 +38,13 @@ Channel_list insert_new_channel(Channel_list all_channels,
     insert_user(channel_users, creator);
     new_channel->users = channel_users;
 
+    for (chn_list = creator->channels->next; chn_list != NULL; chn_list = chn_list->next)
+    {
+        if (strcmp (chn_list->channel->name, channel_name) == 0)
+        {
+            insert_channel(creator->channels, new_channel);
+        }
+    }
     return (insert_channel(all_channels, new_channel));
 }
 
