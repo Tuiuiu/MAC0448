@@ -73,6 +73,7 @@ int number_of_connections = 0;
 void* client_connection(void* arg);
 void write_to_all (char* message);
 void write_to_all_in_channel (Channel channel, char* message);
+void write_to_all_in_channel_except_me (Channel channel, char* message, User me);
 void start_channels (Channel_list allchannels);
 
 /* Main */
@@ -421,6 +422,7 @@ void* client_connection(void* threadarg)
 		}
 		else if (strcmp(command, "PRIVMSG") == 0)
 		{
+			char confirmation_string[MAX_NICK_SIZE + MAX_CHANNEL_NAME_SIZE + 30] = " ";
 			char receiver[1 + MAX_NICK_SIZE];
 			char message[1 + MAX_MSG_SIZE] = " ";
 			Channel_list aux;
@@ -434,8 +436,8 @@ void* client_connection(void* threadarg)
 				{
 					if (strcmp(aux->channel->name, receiver) == 0)
 					{
-						sprintf(message, "%s\n", message);
-						write_to_all_in_channel(aux->channel, message);
+						sprintf(confirmation_string, ":%s PRIVMSG %s :%s\n", user->nickname, aux->channel->name, message);
+						write_to_all_in_channel_except_me(aux->channel, confirmation_string, user);
 						break;
 					}
 				}
@@ -519,8 +521,18 @@ void write_to_all_in_channel (Channel channel, char* message)
 
 	for (aux = channel->users->next; aux != NULL; aux=aux->next)
 	{   
-		printf("\n%s\n", aux->user->nickname);
 		write(aux->user->connfd, message, strlen(message));
+	}	
+}
+
+void write_to_all_in_channel_except_me (Channel channel, char* message, User me)
+{
+	User_list aux;
+
+	for (aux = channel->users->next; aux != NULL; aux=aux->next)
+	{   
+		if (aux->user != me)
+			write(aux->user->connfd, message, strlen(message));
 	}	
 }
 
