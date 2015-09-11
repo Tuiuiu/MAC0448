@@ -452,6 +452,23 @@ void* client_connection(void* threadarg)
 				}
 			}
 		}
+        else if (strcmp(command, "LIST") == 0)
+        {
+            char message[1 + 100 + MAX_CHANNEL_NAME_SIZE];
+            Channel_list aux;
+
+            strcpy (message, ":irc.ircserver.net 321 Channel :Users  Name\n");
+            write (user->connfd, message, strlen (message));
+
+            for (aux = channel_list->next; aux != NULL; aux = aux->next)
+            {
+                sprintf (message, "%s %d :\n", aux->channel->name, number_of_users (aux->channel->users));
+                write (user->connfd, message, strlen (message));
+            }
+
+            strcpy (message, ":irc.ircserver.net 323 :End of /LIST\n");
+            write (user->connfd, message, strlen (message));
+        }
 		else
 		{
 			sprintf(string, "%s enviou: %s", user->nickname, recvline);
