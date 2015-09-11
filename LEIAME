@@ -1,0 +1,58 @@
+Como compilar
+-------------
+$ make
+
+Nota: na compilação são usados os arquivos cJSON.c e cJSON.h, que foram obtidos de http://sourceforge.net/projects/cjson/ e servem para extrair a temperatura do documento JSON com informações meteorológicas.
+
+Como rodar
+----------
+$ ./ircserver [porta]
+
+Por exemplo,
+$ ./ircserver 6667
+
+
+
+Como se conectar localmente por Telnet
+--------------------------------------
+
+$ telnet localhost [porta]
+
+Por exemplo, 
+$ telnet localhost 6667
+
+
+
+Comandos após se conectar por Telnet
+------------------------------------
+
+Definir o nickname do usuário:
+NICK [nome_desejado]
+
+Listar os canais:
+LIST
+
+Entrar em um canal:
+JOIN #[nome_do_canal]
+
+Enviar mensagem para todos os usuários do canal:
+PRIVMSG #[nome_do_canal] :[mensagem]
+
+Transferir arquivo para um usuário:
+Não é possível fazer por Telnet. É necessário usar um cliente de IRC com suporte a DCC, como o XChat.
+
+Sair do canal:
+PART #[nome_do_canal]
+
+Desconectar do servidor:
+QUIT :[mensagem_de_saída_opcional]
+
+Obter a data atual no servidor no formato dd/mm/yyyy:
+MACDATA
+
+Obter a hora atual no servidor no formato hh:mm:ss—sigla da time-
+zone:
+MACHORA
+
+Obter a temperatura atual da cidade de São Paulo:
+MACTEMPERATURA
