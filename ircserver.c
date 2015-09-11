@@ -217,9 +217,13 @@ void* client_connection(void* threadarg)
 	struct tm * timeinfo;
 	char time_string[1 + MAX_TIME_STRING_SIZE];
 
+	
+	Channel_list channels_aux1, channels_aux2;
+
 	bool wants_to_quit = false;
 
 	user = (User) threadarg;
+
 
 	printf("[Uma conexao aberta]\n");
 	/* Já que está no processo filho, não precisa mais do socket
@@ -397,18 +401,21 @@ void* client_connection(void* threadarg)
 			char quit_message[1 + MAX_MSG_SIZE];
 			int has_quit_message;
 			char message_to_send[1 + MAX_MSG_SIZE + MAX_NICK_SIZE + 30];
+			Channel_list aux;
 
 			has_quit_message = sscanf(recvline, "%*s %500s", quit_message);
 
-			if (has_quit_message == 1)
+			for(aux = user->channels->next; aux != NULL; aux = aux->next)
 			{
-				sprintf(message_to_send, "%s saiu e deixou a mensagem %s\n", user->nickname, quit_message);
-				write_to_all(message_to_send);
-			}
-			else
-			{
-				sprintf(message_to_send, "%s saiu\n", user->nickname);
-				write_to_all(message_to_send);
+				if (has_quit_message == 1)
+				{
+					sprintf(message_to_send, ":%s QUIT :%s\n", user->nickname, quit_message);
+				}
+				else
+				{
+					sprintf(message_to_send, ":%s QUIT :%s\n", user->nickname, user->nickname);
+				}
+				write_to_all_in_channel(aux->channel, message_to_send);
 			}
 			wants_to_quit = true;
 		}
@@ -456,6 +463,18 @@ void* client_connection(void* threadarg)
 	 * pode finalizar o processo filho */
 	printf("[Uma conexao fechada]\n");
 	close(user->connfd);
+
+	channels_aux1 = user->channels; channels_aux2 = channels_aux1->next;
+	while (channels_aux2 != NULL)
+	{
+		channels_aux1 = channels_aux2;
+		channels_aux2 = channels_aux1->next;
+		remove_user(channels_aux1->channel->users, user->nickname);
+		free (channels_aux1);
+	}
+	remove_user(user_list, user->nickname);
+	free (user->channels);
+	free (user);
 
 	/*************************************************************/
 	/****************  TIRAR DA LISTA DE USUÁRIOS  ***************/
