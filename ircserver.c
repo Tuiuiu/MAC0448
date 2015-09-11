@@ -205,7 +205,9 @@ void* client_connection(void* threadarg)
 	/* user->id é o índice da thread */
 
 	/* Armazena linhas recebidas do cliente */
-	char    recvline[MAXLINE + 1];
+	char received_string[MAXLINE + 1];
+	char* received_string_token;
+	char recvline[MAXLINE + 1];
 	/* Armazena o tamanho da string lida do cliente */
 	ssize_t  n;
 
@@ -244,247 +246,263 @@ void* client_connection(void* threadarg)
 	/* ========================================================= */
 	/* TODO: É esta parte do código que terá que ser modificada
 	 * para que este servidor consiga interpretar comandos IRC  */
-	while (!wants_to_quit && (n=read(user->connfd, recvline, MAXLINE)) > 0) {
-		recvline[n]=0;
-		printf("[Cliente conectado na thread %d enviou] ", user->id);
-		if ((fputs(recvline,stdout)) == EOF) {
-			perror("fputs :( \n");
-			exit(6);
-		}
+	while (!wants_to_quit && (n=read(user->connfd, received_string, MAXLINE)) > 0)
+	{
+		received_string[n]='\0';
 
-		sprintf(command, " ");
-		sscanf(recvline, "%15s", command);
+		/*printf("received_string: %s\n", received_string);*/
 
-		if (strcmp(command, "NICK") == 0)
+		received_string_token = strtok (received_string, "\n\r"); /* para separar vários comandos passados de uma vez */
+
+		/*printf("received_string: %s\n", received_string);
+		printf("recvline: %s\n", recvline);*/
+
+		while (received_string_token != NULL)
 		{
-			char confirmation_string[1 + MAX_NICK_SIZE + MAX_CHANNEL_NAME_SIZE + 30] = " ";
-            char old_nick[1 + MAX_NICK_SIZE];
-            char possible_nick[1 + MAX_NICK_SIZE];
-            strcpy (old_nick, user->nickname);
-			sscanf(recvline, "%*s %s", possible_nick);
-			if (exists_nickname(user_list, possible_nick))
-			{
-				sprintf (confirmation_string, ":irc.ircserver.net 433 * %s :Nickname is already in use\n", possible_nick);
-				write (user->connfd, confirmation_string, strlen(confirmation_string));
+			sprintf (recvline, "%s\n", received_string_token); /* para colocar o \n que foi tirado pela strtok */
+
+			printf("[Cliente conectado na thread %d enviou] ", user->id);
+			if ((fputs(recvline,stdout)) == EOF) {
+				perror("fputs :( \n");
+				exit(6);
 			}
-			else
+
+			sprintf(command, " ");
+			sscanf(recvline, "%15s", command);
+
+			if (strcmp(command, "NICK") == 0)
 			{
-				strcpy (user->nickname, possible_nick);
-				sprintf (confirmation_string, ":%s NICK :%s\n", old_nick, user->nickname);
-				write (user->connfd, confirmation_string, strlen(confirmation_string));
-			}
-		}
-		else if (strcmp (command, "MACDATA") == 0)
-		{
-			time(&rawtime);
-			timeinfo = localtime(&rawtime);
-
-			strftime(time_string, MAX_TIME_STRING_SIZE, "%d/%m/%Y\n", timeinfo);
-			write(user->connfd, time_string, strlen(time_string));
-		}
-		else if (strcmp(command, "MACHORA") == 0)
-		{
-			time(&rawtime);
-			timeinfo = localtime(&rawtime);
-
-			strftime(time_string, MAX_TIME_STRING_SIZE, "%X-%Z\n", timeinfo);
-			write(user->connfd, time_string, strlen(time_string));
-		}
-		else if (strcmp (command, "MACTEMPERATURA") == 0)
-		{
-			if (get_weather(user->connfd) != 0)
-				perror("get weather :( \n");
-		}
- 		else if (strcmp(command, "JOIN") == 0)
-		{
-			/*char channel1[1 + MAX_CHANNEL_NAME_SIZE] = "";
-			char channel2[1 + MAX_CHANNEL_NAME_SIZE] = "";*/
-			char* confirmation_string;
-			Channel_list aux;
-			char* token;
-			char* delimiters = " ,\n\r";
-			bool channel_exists;
-
-			token = strtok(recvline, delimiters);
-			token = strtok(NULL, delimiters); /* ignora o primeiro token pois é JOIN */
-			while (token != NULL)
-			{
-				channel_exists = false;
-				if (token[0] == '#' || token[0] == '&') 
+				char confirmation_string[1 + MAX_NICK_SIZE + MAX_CHANNEL_NAME_SIZE + 30] = " ";
+				char old_nick[1 + MAX_NICK_SIZE];
+				char possible_nick[1 + MAX_NICK_SIZE];
+				strcpy (old_nick, user->nickname);
+				sscanf(recvline, "%*s %s", possible_nick);
+				if (exists_nickname(user_list, possible_nick))
 				{
-					for (aux = channel_list->next; aux != NULL; aux = aux->next)
-					{
-						/*printf ("token: %s| canal: aux->channel->name: %s|\n", token, aux->channel->name);
-						printf ("strcmp = %d\n", strcmp(token, aux->channel->name));*/
-						if (strcmp(token, aux->channel->name) == 0)
-						{
-							channel_exists = true;
-							if (!exists_channel(user->channels, aux->channel->name))
-							{
-                                char* users_string;
-                                int users_string_size = (MAX_NICK_SIZE + 2) * number_of_users (aux->channel->users); /* + 2 pelo @ e pelo espaço */
-
-                                /* inserção nas listas */
-								insert_channel (user->channels, aux->channel);
-								insert_user (aux->channel->users, user);
-
-                                confirmation_string = malloc ((1 + MAX_NICK_SIZE + MAX_CHANNEL_NAME_SIZE + 30 + users_string_size) * sizeof (char));
-
-                                /* resposta dizendo que o JOIN deu certo */
-                                sprintf (confirmation_string, ":%s JOIN %s\n", user->nickname, aux->channel->name);
-                                write_to_all_in_channel (aux->channel, confirmation_string);
-
-                                /* resposta dizendo o tópico do canal*/
-								sprintf (confirmation_string, ":irc.ircserver.net 331 %s %s :No topic is set\n", user->nickname, aux->channel->name);
-								write (user->connfd, confirmation_string, strlen(confirmation_string));
-
-                                /* resposta dizendo os usuários conectados no canal */
-                                users_string = malloc ((1 + users_string_size) * sizeof (char));
-                                users_string[0] = '\0';
-                                users_list_to_string (aux->channel->users, users_string);
-
-								sprintf (confirmation_string, ":irc.ircserver.net 353 %s @ %s :%s\n", user->nickname, aux->channel->name, users_string);
-								write (user->connfd, confirmation_string, strlen(confirmation_string));
-                                free (users_string);
-
-                                /* resposta dizendo que acabou a lista de usuários conectados no canal */
-								sprintf (confirmation_string, ":irc.ircserver.net 366 %s %s :End of /NAMES list.\n", user->nickname, aux->channel->name);
-								write (user->connfd, confirmation_string, strlen(confirmation_string));
-                                free (confirmation_string);
-							}
-						}
-					}
-					if (!channel_exists)
-					{
-						insert_new_channel(channel_list, token, user);
-					}
+					sprintf (confirmation_string, ":irc.ircserver.net 433 * %s :Nickname is already in use\n", possible_nick);
+					write (user->connfd, confirmation_string, strlen(confirmation_string));
 				}
 				else
 				{
-                    confirmation_string = malloc (1 + 50 + MAX_NICK_SIZE + MAX_CHANNEL_NAME_SIZE);
-					sprintf(confirmation_string, ":irc.ircserver.net 403 %s %s :No such channel\n", user->nickname, token);
-					write(user->connfd, confirmation_string, strlen(confirmation_string));
-                    free (confirmation_string);
+					strcpy (user->nickname, possible_nick);
+					sprintf (confirmation_string, ":%s NICK :%s\n", old_nick, user->nickname);
+					write (user->connfd, confirmation_string, strlen(confirmation_string));
 				}
-				token = strtok(NULL, delimiters);
 			}
-		}
-		else if (strcmp(command, "PART") == 0)
-		{
-			char confirmation_string[MAX_NICK_SIZE + MAX_CHANNEL_NAME_SIZE + 30] = " ";
-			Channel removed;
-			
-			char* token;
-			char* delimiters = " ,\n\r";
-
-			token = strtok(recvline, delimiters);
-			token = strtok(NULL, delimiters); /* ignora o primeiro token pois é PART */
-			
-			while (token != NULL)
+			else if (strcmp (command, "MACDATA") == 0)
 			{
-				if (token[0] == '#' || token[0] == '&') 
+				time(&rawtime);
+				timeinfo = localtime(&rawtime);
+
+				strftime(time_string, MAX_TIME_STRING_SIZE, "%d/%m/%Y\n", timeinfo);
+				write(user->connfd, time_string, strlen(time_string));
+			}
+			else if (strcmp(command, "MACHORA") == 0)
+			{
+				time(&rawtime);
+				timeinfo = localtime(&rawtime);
+
+				strftime(time_string, MAX_TIME_STRING_SIZE, "%X-%Z\n", timeinfo);
+				write(user->connfd, time_string, strlen(time_string));
+			}
+			else if (strcmp (command, "MACTEMPERATURA") == 0)
+			{
+				if (get_weather(user->connfd) != 0)
+					perror("get weather :( \n");
+			}
+			else if (strcmp(command, "JOIN") == 0)
+			{
+				/*char channel1[1 + MAX_CHANNEL_NAME_SIZE] = "";
+				char channel2[1 + MAX_CHANNEL_NAME_SIZE] = "";*/
+				char* confirmation_string;
+				Channel_list aux;
+				char* token;
+				char* delimiters = " ,\n\r";
+				bool channel_exists;
+
+				token = strtok(recvline, delimiters);
+				token = strtok(NULL, delimiters); /* ignora o primeiro token pois é JOIN */
+				while (token != NULL)
 				{
-					removed = remove_channel(user->channels, token);
-					if (removed != NULL)
+					channel_exists = false;
+					if (token[0] == '#' || token[0] == '&') 
 					{
-						sprintf (confirmation_string, ":%s PART %s\n", user->nickname, removed->name);
-						write_to_all_in_channel(removed, confirmation_string);
-						remove_user(removed->users, user->nickname);
-						free (removed);
+						for (aux = channel_list->next; aux != NULL; aux = aux->next)
+						{
+							/*printf ("token: %s| canal: aux->channel->name: %s|\n", token, aux->channel->name);
+							printf ("strcmp = %d\n", strcmp(token, aux->channel->name));*/
+							if (strcmp(token, aux->channel->name) == 0)
+							{
+								channel_exists = true;
+								if (!exists_channel(user->channels, aux->channel->name))
+								{
+									char* users_string;
+									int users_string_size = (MAX_NICK_SIZE + 2) * number_of_users (aux->channel->users); /* + 2 pelo @ e pelo espaço */
+
+									/* inserção nas listas */
+									insert_channel (user->channels, aux->channel);
+									insert_user (aux->channel->users, user);
+
+									confirmation_string = malloc ((1 + MAX_NICK_SIZE + MAX_CHANNEL_NAME_SIZE + 30 + users_string_size) * sizeof (char));
+
+									/* resposta dizendo que o JOIN deu certo */
+									sprintf (confirmation_string, ":%s JOIN %s\n", user->nickname, aux->channel->name);
+									write_to_all_in_channel (aux->channel, confirmation_string);
+
+									/* resposta dizendo o tópico do canal*/
+									sprintf (confirmation_string, ":irc.ircserver.net 331 %s %s :No topic is set\n", user->nickname, aux->channel->name);
+									write (user->connfd, confirmation_string, strlen(confirmation_string));
+
+									/* resposta dizendo os usuários conectados no canal */
+									users_string = malloc ((1 + users_string_size) * sizeof (char));
+									users_string[0] = '\0';
+									users_list_to_string (aux->channel->users, users_string);
+
+									sprintf (confirmation_string, ":irc.ircserver.net 353 %s @ %s :%s\n", user->nickname, aux->channel->name, users_string);
+									write (user->connfd, confirmation_string, strlen(confirmation_string));
+									free (users_string);
+
+									/* resposta dizendo que acabou a lista de usuários conectados no canal */
+									sprintf (confirmation_string, ":irc.ircserver.net 366 %s %s :End of /NAMES list.\n", user->nickname, aux->channel->name);
+									write (user->connfd, confirmation_string, strlen(confirmation_string));
+									free (confirmation_string);
+								}
+							}
+						}
+						if (!channel_exists)
+						{
+							insert_new_channel(channel_list, token, user);
+						}
 					}
 					else
 					{
-						sprintf(confirmation_string, ":irc.ircserver.net 442 %s %s :You're not on that channel\n", user->nickname, token);
+						confirmation_string = malloc (1 + 50 + MAX_NICK_SIZE + MAX_CHANNEL_NAME_SIZE);
+						sprintf(confirmation_string, ":irc.ircserver.net 403 %s %s :No such channel\n", user->nickname, token);
+						write(user->connfd, confirmation_string, strlen(confirmation_string));
+						free (confirmation_string);
+					}
+					token = strtok(NULL, delimiters);
+				}
+			}
+			else if (strcmp(command, "PART") == 0)
+			{
+				char confirmation_string[MAX_NICK_SIZE + MAX_CHANNEL_NAME_SIZE + 30] = " ";
+				Channel removed;
+				
+				char* token;
+				char* delimiters = " ,\r";
+
+				token = strtok(recvline, delimiters);
+				token = strtok(NULL, delimiters); /* ignora o primeiro token pois é PART */
+				
+				while (token != NULL)
+				{
+					if (token[0] == '#' || token[0] == '&') 
+					{
+						removed = remove_channel(user->channels, token);
+						if (removed != NULL)
+						{
+							sprintf (confirmation_string, ":%s PART %s\n", user->nickname, removed->name);
+							write_to_all_in_channel(removed, confirmation_string);
+							remove_user(removed->users, user->nickname);
+							free (removed);
+						}
+						else
+						{
+							sprintf(confirmation_string, ":irc.ircserver.net 442 %s %s :You're not on that channel\n", user->nickname, token);
+							write(user->connfd, confirmation_string, strlen(confirmation_string));
+						}
+					}
+					else
+					{
+						sprintf(confirmation_string, ":irc.ircserver.net 403 %s %s :No such channel\n", user->nickname, token);
 						write(user->connfd, confirmation_string, strlen(confirmation_string));
 					}
+					token = strtok(NULL, delimiters);
 				}
-				else
-				{
-					sprintf(confirmation_string, ":irc.ircserver.net 403 %s %s :No such channel\n", user->nickname, token);
-					write(user->connfd, confirmation_string, strlen(confirmation_string));
-				}
-				token = strtok(NULL, delimiters);
 			}
-		}
-		else if (strcmp(command, "QUIT") == 0)
-		{
-			char quit_message[1 + MAX_MSG_SIZE];
-			int has_quit_message;
-			char message_to_send[1 + MAX_MSG_SIZE + MAX_NICK_SIZE + 30];
-			Channel_list aux;
-
-			has_quit_message = sscanf(recvline, "%*s %500s", quit_message);
-
-			for(aux = user->channels->next; aux != NULL; aux = aux->next)
+			else if (strcmp(command, "QUIT") == 0)
 			{
-				if (has_quit_message == 1)
+				char quit_message[1 + MAX_MSG_SIZE];
+				int has_quit_message;
+				char message_to_send[1 + MAX_MSG_SIZE + MAX_NICK_SIZE + 30];
+				Channel_list aux;
+
+				has_quit_message = sscanf(recvline, "%*s %500s", quit_message);
+
+				for(aux = user->channels->next; aux != NULL; aux = aux->next)
 				{
-					sprintf(message_to_send, ":%s QUIT :%s\n", user->nickname, quit_message);
+					if (has_quit_message == 1)
+					{
+						sprintf(message_to_send, ":%s QUIT :%s\n", user->nickname, quit_message);
+					}
+					else
+					{
+						sprintf(message_to_send, ":%s QUIT :%s\n", user->nickname, user->nickname);
+					}
+					write_to_all_in_channel(aux->channel, message_to_send);
 				}
-				else
-				{
-					sprintf(message_to_send, ":%s QUIT :%s\n", user->nickname, user->nickname);
-				}
-				write_to_all_in_channel(aux->channel, message_to_send);
+				wants_to_quit = true;
 			}
-			wants_to_quit = true;
-		}
-		else if (strcmp(command, "PRIVMSG") == 0)
-		{
-			char confirmation_string[MAX_NICK_SIZE + MAX_CHANNEL_NAME_SIZE + 30] = " ";
-			char receiver[1 + MAX_NICK_SIZE];
-			char message[1 + MAX_MSG_SIZE] = " ";
-			Channel_list aux;
-			User_list usraux;
-			sscanf(recvline, "%*s %s :%[^\n\r]", receiver, message);
-
-			if (receiver[0] == '#' || receiver[0] == '&')
+			else if (strcmp(command, "PRIVMSG") == 0)
 			{
+				char confirmation_string[MAX_NICK_SIZE + MAX_CHANNEL_NAME_SIZE + 30] = " ";
+				char receiver[1 + MAX_NICK_SIZE];
+				char message[1 + MAX_MSG_SIZE] = " ";
+				Channel_list aux;
+				User_list usraux;
+				sscanf(recvline, "%*s %s :%[^\n\r]", receiver, message);
+
+				if (receiver[0] == '#' || receiver[0] == '&')
+				{
+					for (aux = channel_list->next; aux != NULL; aux = aux->next)
+					{
+						if (strcmp(aux->channel->name, receiver) == 0)
+						{
+							sprintf(confirmation_string, ":%s PRIVMSG %s :%s\n", user->nickname, aux->channel->name, message);
+							write_to_all_in_channel_except_me(aux->channel, confirmation_string, user);
+							break;
+						}
+					}
+				}
+				else 
+				{
+					for (usraux = user_list->next; usraux != NULL; usraux = usraux->next)
+					{
+						if (strcmp(usraux->user->nickname, receiver) == 0)
+						{
+							sprintf(confirmation_string, ":%s PRIVMSG %s :%s\n", user->nickname, usraux->user->nickname, message);
+							write(usraux->user->connfd, confirmation_string, strlen(confirmation_string));
+							break;
+						}
+					}
+				}
+			}
+			else if (strcmp(command, "LIST") == 0)
+			{
+				char message[1 + 100 + MAX_CHANNEL_NAME_SIZE];
+				Channel_list aux;
+
+				strcpy (message, ":irc.ircserver.net 321 Channel :Users  Name\n");
+				write (user->connfd, message, strlen (message));
+
 				for (aux = channel_list->next; aux != NULL; aux = aux->next)
 				{
-					if (strcmp(aux->channel->name, receiver) == 0)
-					{
-						sprintf(confirmation_string, ":%s PRIVMSG %s :%s\n", user->nickname, aux->channel->name, message);
-						write_to_all_in_channel_except_me(aux->channel, confirmation_string, user);
-						break;
-					}
+					sprintf (message, "%s %d :\n", aux->channel->name, number_of_users (aux->channel->users));
+					write (user->connfd, message, strlen (message));
 				}
+
+				strcpy (message, ":irc.ircserver.net 323 :End of /LIST\n");
+				write (user->connfd, message, strlen (message));
 			}
-			else 
+			else
 			{
-				for (usraux = user_list->next; usraux != NULL; usraux = usraux->next)
-				{
-					if (strcmp(usraux->user->nickname, receiver) == 0)
-					{
-						sprintf(confirmation_string, ":%s PRIVMSG %s :%s\n", user->nickname, usraux->user->nickname, message);
-						write(usraux->user->connfd, confirmation_string, strlen(confirmation_string));
-						break;
-					}
-				}
+				sprintf(string, "%s enviou: %s", user->nickname, recvline);
+				write_to_all(string);
 			}
+
+			received_string_token = strtok (NULL, "\n\r");
 		}
-        else if (strcmp(command, "LIST") == 0)
-        {
-            char message[1 + 100 + MAX_CHANNEL_NAME_SIZE];
-            Channel_list aux;
-
-            strcpy (message, ":irc.ircserver.net 321 Channel :Users  Name\n");
-            write (user->connfd, message, strlen (message));
-
-            for (aux = channel_list->next; aux != NULL; aux = aux->next)
-            {
-                sprintf (message, "%s %d :\n", aux->channel->name, number_of_users (aux->channel->users));
-                write (user->connfd, message, strlen (message));
-            }
-
-            strcpy (message, ":irc.ircserver.net 323 :End of /LIST\n");
-            write (user->connfd, message, strlen (message));
-        }
-		else
-		{
-			sprintf(string, "%s enviou: %s", user->nickname, recvline);
-			write_to_all(string);
-	 	}
 	}
 
 	/* Após ter feito toda a troca de informação com o cliente,
