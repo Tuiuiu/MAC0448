@@ -48,6 +48,7 @@ float get_celsius(char* JSONinput) {
       aux = cJSON_Print(item);
       temperatura = atof(aux);
       free(aux);
+      /* O site devolve a temperatura em Kelvin, por isso a conversão */
       return temperatura - 273;
    }
    return 0;
@@ -62,7 +63,6 @@ int get_weather (int connfd) {
 
    char* hostname = "openweathermap.com";
    char desired_ip[100];
-   /* 144.76.83.20 endereço relativo ao openweathermap.com */
 
    hostname_to_ip(hostname, desired_ip);
    
@@ -104,8 +104,7 @@ int hostname_to_ip(char * hostname , char* ip)
          
     if ( (he = gethostbyname( hostname ) ) == NULL) 
     {
-        /* get the host info */
-        herror("gethostbyname");
+        /* Get the host info */
         return 1;
     }
  

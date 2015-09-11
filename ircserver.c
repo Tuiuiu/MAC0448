@@ -245,9 +245,6 @@ void write_to_all (char* message) /* envia message para todos os usuários */
 
 	for (aux = user_list->next; aux != NULL; aux=aux->next)
 	{   
-		/*char test[1000];
-		sprintf (test, "Você é o usuário %d (%s), e: ", aux->id, aux->nickname);
-		write(aux->connfd, test, strlen(test));*/
 		write(aux->user->connfd, message, strlen(message));
 	}
 }
@@ -562,18 +559,6 @@ void command_list(char* recvline, User user)
     write (user->connfd, message, strlen (message));
 }
 
-void command_wrongcommand(char* recvline, User user)
-{
-	char confirmation_string[MAX_NICK_SIZE + MAX_CHANNEL_NAME_SIZE + 30] = " ";
-
-	char* token;
-	char* delimiters = " ,\n\r";
-
-	token = strtok(recvline, delimiters);
-	sprintf(confirmation_string, ":irc.ircserver.net 421 %s :Unknown command", token);
-	write(user->connfd, confirmation_string, strlen(confirmation_string));
-}
-
 void get_command(char* command, char* recvline, User user, bool *wants_to_quit) /* chama a função correspondente ao comando command */
 {
 	if (strcmp(command, "NICK") == 0)
@@ -594,6 +579,4 @@ void get_command(char* command, char* recvline, User user, bool *wants_to_quit) 
 		command_privmsg (recvline, user);
 	else if (strcmp(command, "LIST") == 0)
 	  	command_list (recvline, user);
-	/* else
-		 command_wrongcommand(recvline, user); */
 }
