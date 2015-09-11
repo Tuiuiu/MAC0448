@@ -51,6 +51,17 @@ int number_of_users (User_list list)
 	return number;
 }
 
+bool exists_nickname(User_list list, char *nickname)
+{
+    User_list aux;
+    for (aux = list->next; aux != NULL; aux = aux->next)
+    {
+        if(strcmp(aux->user->nickname, nickname) == 0)
+            return true;
+    }
+    return false;
+}
+
 void users_list_to_string (User_list list, char* string) /* string (que precisa já estar alocada) terá os nicks dos usuários com um @ antes e separados por espaços */
 {
 	User_list aux;

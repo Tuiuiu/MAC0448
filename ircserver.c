@@ -259,11 +259,20 @@ void* client_connection(void* threadarg)
 		{
 			char confirmation_string[1 + MAX_NICK_SIZE + MAX_CHANNEL_NAME_SIZE + 30] = " ";
             char old_nick[1 + MAX_NICK_SIZE];
-
+            char possible_nick[1 + MAX_NICK_SIZE];
             strcpy (old_nick, user->nickname);
-			sscanf(recvline, "%*s %s", user->nickname);
-			sprintf (confirmation_string, ":%s NICK :%s\n", old_nick, user->nickname);
-			write (user->connfd, confirmation_string, strlen(confirmation_string));
+			sscanf(recvline, "%*s %s", possible_nick);
+			if (exists_nickname(user_list, possible_nick))
+			{
+				sprintf (confirmation_string, ":irc.ircserver.net 433 * %s :Nickname is already in use\n", possible_nick);
+				write (user->connfd, confirmation_string, strlen(confirmation_string));
+			}
+			else
+			{
+				strcpy (user->nickname, possible_nick);
+				sprintf (confirmation_string, ":%s NICK :%s\n", old_nick, user->nickname);
+				write (user->connfd, confirmation_string, strlen(confirmation_string));
+			}
 		}
 		else if (strcmp (command, "MACDATA") == 0)
 		{
@@ -428,7 +437,7 @@ void* client_connection(void* threadarg)
 			Channel_list aux;
 			User_list usraux;
 			sscanf(recvline, "%*s %s :%[^\n\r]", receiver, message);
-			
+
 			if (receiver[0] == '#' || receiver[0] == '&')
 			{
 				for (aux = channel_list->next; aux != NULL; aux = aux->next)
