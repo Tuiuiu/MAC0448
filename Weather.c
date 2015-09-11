@@ -29,6 +29,8 @@
 /* Prototypes */
 float get_celsius(char* JSONinput);
 
+int hostname_to_ip(char* hostname, char* ip);
+
 float get_celsius(char* JSONinput) {
    cJSON *json;
    cJSON *main_Json;
@@ -57,8 +59,12 @@ int get_weather (int connfd) {
    char sndline[MAXLINE + 1];
    char weather_msg[WEATHERMSG + 1];
    struct sockaddr_in servaddr;
-   char* desired_ip = "144.76.83.20";
+
+   char* hostname = "openweathermap.com";
+   char desired_ip[100];
    /* 144.76.83.20 endereço relativo ao openweathermap.com */
+
+   hostname_to_ip(hostname, desired_ip);
    
    if ( (sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
       fprintf(stderr,"socket error :( \n");
@@ -88,4 +94,29 @@ int get_weather (int connfd) {
       fprintf(stderr,"read error :(\n");
    
    return 0;
+}
+ 
+int hostname_to_ip(char * hostname , char* ip)
+{
+    struct hostent *he;
+    struct in_addr **addr_list;
+    int i;
+         
+    if ( (he = gethostbyname( hostname ) ) == NULL) 
+    {
+        /* get the host info */
+        herror("gethostbyname");
+        return 1;
+    }
+ 
+    addr_list = (struct in_addr **) he->h_addr_list;
+     
+    for(i = 0; addr_list[i] != NULL; i++) 
+    {
+        /* Return the first one; */
+        strcpy(ip , inet_ntoa(*addr_list[i]) );
+        return 0;
+    }
+     
+    return 1;
 }
