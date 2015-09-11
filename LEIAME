@@ -1,5 +1,10 @@
+EP1 de MAC0448
+ * Gabriel Ferreira Guilhoto    Número USP 4404279
+ * Lucas Dário                  Número USP 7990940
+
 Como compilar
 -------------
+
 $ make
 
 Nota: na compilação são usados os arquivos cJSON.c e cJSON.h, que foram obtidos de http://sourceforge.net/projects/cjson/ e servem para extrair a temperatura do documento JSON com informações meteorológicas.
