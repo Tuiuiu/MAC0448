@@ -428,8 +428,7 @@ void* client_connection(void* threadarg)
 			Channel_list aux;
 			User_list usraux;
 			sscanf(recvline, "%*s %s :%[^\n\r]", receiver, message);
-			printf("message: %s\n", message);
-
+			
 			if (receiver[0] == '#' || receiver[0] == '&')
 			{
 				for (aux = channel_list->next; aux != NULL; aux = aux->next)
@@ -448,7 +447,8 @@ void* client_connection(void* threadarg)
 				{
 					if (strcmp(usraux->user->nickname, receiver) == 0)
 					{
-						write(usraux->user->connfd, message, strlen(message));
+						sprintf(confirmation_string, ":%s PRIVMSG %s :%s\n", user->nickname, usraux->user->nickname, message);
+						write(usraux->user->connfd, confirmation_string, strlen(confirmation_string));
 						break;
 					}
 				}
