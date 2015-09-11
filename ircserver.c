@@ -1,31 +1,8 @@
-/* Por Prof. Daniel Batista <batista@ime.usp.br>
- * Em 12/08/2013
- * 
- * Um código simples (não é o código ideal, mas é o suficiente para o
- * EP) de um servidor de eco a ser usado como base para o EP1. Ele
- * recebe uma linha de um cliente e devolve a mesma linha. Teste ele
- * assim depois de compilar:
- * 
- * ./servidor 8000
- * 
- * Com este comando o servidor ficará escutando por conexões na porta
- * 8000 TCP (Se você quiser fazer o servidor escutar em uma porta
- * menor que 1024 você precisa ser root).
+/* EP1 de MAC0448
+ * Gabriel Ferreira Guilhoto    Número USP 4404279
+ * Lucas Dário                  Número USP 7990940 
  *
- * Depois conecte no servidor via telnet. Rode em outro terminal:
- * 
- * telnet 127.0.0.1 8000
- * 
- * Escreva sequências de caracteres seguidas de ENTER. Você verá que
- * o telnet exibe a mesma linha em seguida. Esta repetição da linha é
- * enviada pelo servidor. O servidor também exibe no terminal onde ele
- * estiver rodando as linhas enviadas pelos clientes.
- * 
- * Obs.: Você pode conectar no servidor remotamente também. Basta saber o
- * endereço IP remoto da máquina onde o servidor está rodando e não
- * pode haver nenhum firewall no meio do caminho bloqueando conexões na
- * porta escolhida.
- */
+ * Baseado no código do servidor de eco do prof. Daniel Batista */
 
 #define _GNU_SOURCE
 
@@ -57,8 +34,7 @@
 /* Macros */
 #define LISTENQ 1
 
-#define MAXDATASIZE 100
-#define MAXLINE 4096
+#define MAX_LINE 4096
 #define MAX_CONNECTIONS 100
 #define MAX_MSG_SIZE 500
 #define MAX_TIME_STRING_SIZE 20
@@ -66,7 +42,6 @@
 /* Shared variables */
 User_list user_list;
 Channel_list channel_list;
-
 int number_of_connections = 0;
 
 /* Prototypes */
@@ -75,19 +50,17 @@ void write_to_all (char* message);
 void write_to_all_in_channel (Channel channel, char* message);
 void write_to_all_in_channel_except_me (Channel channel, char* message, User me);
 void start_channels (Channel_list allchannels);
-void get_command(char* command, char* recvline, User user, bool *wants_to_quit);
+void get_command (char* command, char* recvline, User user, bool *wants_to_quit);
 
 
 /* Main */
-int main (int argc, char **argv) {
+int main (int argc, char **argv)
+{
 	/* Os sockets. Um que será o socket que vai escutar pelas conexões
 	 * e o outro que vai ser o socket específico de cada conexão */
 	int listenfd, connfd;
 	/* Informações sobre o socket (endereço e porta) ficam nesta struct */
 	struct sockaddr_in servaddr;
-	/* Retorno da função fork para saber quem é o processo filho e quem
-	 * é o processo pai */
-	/*pid_t childpid;*/ 
 	User aux_user;
 
 	pthread_t threads[MAX_CONNECTIONS];
@@ -95,62 +68,67 @@ int main (int argc, char **argv) {
 	char string[100];
 	char string_aux[1 + MAX_NICK_SIZE];
 
-	user_list = list_init();
-	channel_list = chn_list_init();
+	user_list = list_init ();
+	channel_list = chn_list_init ();
 
-	start_channels(channel_list);
+	start_channels (channel_list);
 	 
-	if (argc != 2) {
-		fprintf(stderr,"Uso: %s <Porta>\n",argv[0]);
-		fprintf(stderr,"Vai rodar um servidor de echo na porta <Porta> TCP\n");
-		exit(1);
+	if (argc != 2)
+	{
+		fprintf (stderr,"Uso: %s <Porta>\n",argv[0]);
+		fprintf (stderr,"Vai rodar um servidor de echo na porta <Porta> TCP\n");
+		exit (1);
 	}
 
-	 /* Criação de um socket. Eh como se fosse um descritor de arquivo. Eh
-	  * possivel fazer operacoes como read, write e close. Neste
-	  * caso o socket criado eh um socket IPv4 (por causa do AF_INET),
-	  * que vai usar TCP (por causa do SOCK_STREAM), já que o IRC
-	  * funciona sobre TCP, e será usado para uma aplicação convencional sobre
-	  * a Internet (por causa do número 0) */
-	if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+	/* Criação de um socket. Eh como se fosse um descritor de arquivo. Eh
+	 * possivel fazer operacoes como read, write e close. Neste
+	 * caso o socket criado eh um socket IPv4 (por causa do AF_INET),
+	 * que vai usar TCP (por causa do SOCK_STREAM), já que o IRC
+	 * funciona sobre TCP, e será usado para uma aplicação convencional sobre
+	 * a Internet (por causa do número 0) */
+	if ((listenfd = socket (AF_INET, SOCK_STREAM, 0)) == -1)
+	{
 		perror("socket :(\n");
 		exit(2);
 	}
 
-	 /* Agora é necessário informar os endereços associados a este
-	  * socket. É necessário informar o endereço / interface e a porta,
-	  * pois mais adiante o socket ficará esperando conexões nesta porta
-	  * e neste(s) endereços. Para isso é necessário preencher a struct
-	  * servaddr. É necessário colocar lá o tipo de socket (No nosso
-	  * caso AF_INET porque é IPv4), em qual endereço / interface serão
-	  * esperadas conexões (Neste caso em qualquer uma -- INADDR_ANY) e
-	  * qual a porta. Neste caso será a porta que foi passada como
-	  * argumento no shell (atoi(argv[1]))
-	  */
+	/* Agora é necessário informar os endereços associados a este
+	 * socket. É necessário informar o endereço / interface e a porta,
+	 * pois mais adiante o socket ficará esperando conexões nesta porta
+	 * e neste(s) endereços. Para isso é necessário preencher a struct
+	 * servaddr. É necessário colocar lá o tipo de socket (No nosso
+	 * caso AF_INET porque é IPv4), em qual endereço / interface serão
+	 * esperadas conexões (Neste caso em qualquer uma -- INADDR_ANY) e
+	 * qual a porta. Neste caso será a porta que foi passada como
+	 * argumento no shell (atoi(argv[1]))
+ 	 */
 	bzero(&servaddr, sizeof(servaddr));
 	servaddr.sin_family     = AF_INET;
 	servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	servaddr.sin_port         = htons(atoi(argv[1]));
-	if (bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr)) == -1) {
-		perror("bind :(\n");
-		exit(3);
+	if (bind (listenfd, (struct sockaddr *)&servaddr, sizeof (servaddr)) == -1)
+	{
+		perror ("bind :(\n");
+		exit (3);
 	}
 
-	 /* Como este código é o código de um servidor, o socket será um
-	  * socket passivo. Para isto é necessário chamar a função listen
-	  * que define que este é um socket de servidor que ficará esperando
-	  * por conexões nos endereços definidos na função bind. */
-	if (listen(listenfd, LISTENQ) == -1) {
-		perror("listen :(\n");
-		exit(4);
+	/* Como este código é o código de um servidor, o socket será um
+	 * socket passivo. Para isto é necessário chamar a função listen
+	 * que define que este é um socket de servidor que ficará esperando
+	 * por conexões nos endereços definidos na função bind. */
+	if (listen (listenfd, LISTENQ) == -1)
+	{
+		perror ("listen :(\n");
+		exit (4);
 	}
 
-	printf("[Servidor no ar. Aguardando conexoes na porta %s]\n",argv[1]);
-	printf("[Para finalizar, pressione CTRL+c ou rode um kill ou killall]\n");
+	printf ("[Servidor no ar. Aguardando conexoes na porta %s]\n",argv[1]);
+	printf ("[Para finalizar, pressione CTRL+c ou rode um kill ou killall]\n");
 	 
 	 /* O servidor no final das contas é um loop infinito de espera por
 	  * conexões e processamento de cada uma individualmente */
-	for (;;) {
+	while (true)
+	{
 		  /* O socket inicial que foi criado é o socket que vai aguardar
 			* pela conexão na porta especificada. Mas pode ser que existam
 			* diversos clientes conectando no servidor. Por isso deve-se
@@ -158,29 +136,18 @@ int main (int argc, char **argv) {
 			* da fila de conexões que foram aceitas no socket listenfd e
 			* vai criar um socket específico para esta conexão. O descritor
 			* deste novo socket é o retorno da função accept. */
-		if ((connfd = accept(listenfd, (struct sockaddr *) NULL, NULL)) == -1 ) {
+		if ((connfd = accept(listenfd, (struct sockaddr *) NULL, NULL)) == -1 )
+		{
 			perror("accept :(\n");
 			exit(5);
 		}
 
-
 		sprintf (string_aux, "guest%d", number_of_connections);
-
-		  
-		/* Agora o servidor precisa tratar este cliente de forma
-		 * separada. Para isto é criado um processo filho usando a
-		 * função fork. O processo vai ser uma cópia deste. Depois da
-		 * função fork, os dois processos (pai e filho) estarão no mesmo
-		 * ponto do código, mas cada um terá um PID diferente. Assim é
-		 * possível diferenciar o que cada processo terá que fazer. O
-		 * filho tem que processar a requisição do cliente. O pai tem
-		 * que voltar no loop para continuar aceitando novas conexões */
-		/* Se o retorno da função fork for zero, é porque está no
-		 * processo filho. */
-
 
 		aux_user = new_user(connfd, number_of_connections, string_aux);
 		insert_user(user_list, aux_user);
+
+		/* cria uma thread para lidar com cada cliente */
 		if (pthread_create(&threads[number_of_connections], NULL, client_connection,
 			(void*) aux_user))
 		{
@@ -191,24 +158,17 @@ int main (int argc, char **argv) {
 		sprintf(string, "Conexão estabelecida\n");
 		write(connfd, string, strlen(string));  
 		number_of_connections++;
-
-		/**** PROCESSO PAI ****/
-		/* Se for o pai, a única coisa a ser feita é fechar o socket
-		 * connfd (ele é o socket do cliente específico que será tratado
-		 * pelo processo filho) */
-		/*write(connfd, "teste", strlen("teste"));
-		close(connfd);*/
 	}
 	exit(0);
 }
 
-void* client_connection(void* threadarg)
+void* client_connection(void* threadarg) /* função rodada por cada thread (cada uma cuida de um cliente) */
 {
 	/* user->id é o índice da thread */
 
 	/* Armazena linhas recebidas do cliente */
-	char    recvline[MAXLINE + 1];
-	char 	received_string[MAXLINE + 1];
+	char    recvline[MAX_LINE + 1];
+	char 	received_string[MAX_LINE + 1];
 	char* 	received_string_token;
 	/* Armazena o tamanho da string lida do cliente */
 	ssize_t  n;
@@ -216,8 +176,6 @@ void* client_connection(void* threadarg)
 	User user;
 
 	char command[15];
-
-	
 	
 	Channel_list channels_aux1, channels_aux2;
 
@@ -227,9 +185,6 @@ void* client_connection(void* threadarg)
 
 
 	printf("[Uma conexao aberta]\n");
-	/* Já que está no processo filho, não precisa mais do socket
-	 * listenfd. Só o processo pai precisa deste socket. */
-	/*listenfd;*/
 	 
 	/* Agora pode ler do socket e escrever no socket. Isto tem
 	 * que ser feito em sincronia com o cliente. Não faz sentido
@@ -240,13 +195,9 @@ void* client_connection(void* threadarg)
 	 * esperando por esta resposta) 
 	 */
 
-	 
-	/* ========================================================= */
-	/* TODO: É esta parte do código que terá que ser modificada
-	 * para que este servidor consiga interpretar comandos IRC  */
-	while (!wants_to_quit && (n=read(user->connfd, received_string, MAXLINE)) > 0) {
-		
-		received_string[n]=0;
+	while (!wants_to_quit && (n=read(user->connfd, received_string, MAX_LINE)) > 0)
+	{		
+		received_string[n]='\0';
 
 		for (received_string_token = strtok (received_string, "\n\r"); 
 			 received_string_token != NULL;
@@ -254,39 +205,36 @@ void* client_connection(void* threadarg)
 		{
 			sprintf (recvline, "%s\n", received_string_token);
 			printf("[Cliente conectado na thread %d enviou] ", user->id);
-			if ((fputs(recvline,stdout)) == EOF) {
-				perror("fputs :( \n");
-				exit(6);
+			if ((fputs (recvline,stdout)) == EOF)
+			{
+				perror ("fputs :( \n");
+				exit (6);
 			}
 
-			sprintf(command, " ");
-			sscanf(recvline, "%15s", command);
+			sprintf (command, " ");
+			sscanf (recvline, "%15s", command);
 
-			get_command(command, recvline, user, &wants_to_quit);
+			get_command (command, recvline, user, &wants_to_quit); /* chama a função correspondente ao comando passado */
 		}
 		
 	}
 
 	/* Após ter feito toda a troca de informação com o cliente,
 	 * pode finalizar o processo filho */
-	printf("[Uma conexao fechada]\n");
-	close(user->connfd);
+	printf ("[Uma conexao fechada]\n");
+	close (user->connfd);
 
 	channels_aux1 = user->channels; channels_aux2 = channels_aux1->next;
 	while (channels_aux2 != NULL)
 	{
 		channels_aux1 = channels_aux2;
 		channels_aux2 = channels_aux1->next;
-		remove_user(channels_aux1->channel->users, user->nickname);
+		remove_user (channels_aux1->channel->users, user->nickname);
 		free (channels_aux1);
 	}
 	remove_user(user_list, user->nickname);
 	free (user->channels);
 	free (user);
-
-	/*************************************************************/
-	/****************  TIRAR DA LISTA DE USUÁRIOS  ***************/
-	/*************************************************************/
 	 
 	pthread_exit(NULL);
 }
@@ -304,7 +252,7 @@ void write_to_all (char* message) /* envia message para todos os usuários */
 	}
 }
 
-void write_to_all_in_channel (Channel channel, char* message)
+void write_to_all_in_channel (Channel channel, char* message) /* envia message para todos os usuários no canal channel */
 {
 	User_list aux;
 
@@ -314,7 +262,7 @@ void write_to_all_in_channel (Channel channel, char* message)
 	}	
 }
 
-void write_to_all_in_channel_except_me (Channel channel, char* message, User me)
+void write_to_all_in_channel_except_me (Channel channel, char* message, User me)  /* envia message para todos os usuários no canal channel exceto o me */
 {
 	User_list aux;
 
@@ -325,7 +273,7 @@ void write_to_all_in_channel_except_me (Channel channel, char* message, User me)
 	}	
 }
 
-void start_channels (Channel_list allchannels) 
+void start_channels (Channel_list allchannels) /* inicializa os canais "hardcoded" */
 {
 	 User_list channel_users1, channel_users2;
 	 Channel new_channel1, new_channel2;
@@ -345,6 +293,9 @@ void start_channels (Channel_list allchannels)
 	 insert_channel(allchannels, new_channel1);
 	 insert_channel(allchannels, new_channel2);
 }
+
+
+/* uma função para tratar cada comando */
 
 void command_nick(char* recvline, User user) 
 {
@@ -623,7 +574,7 @@ void command_wrongcommand(char* recvline, User user)
 	write(user->connfd, confirmation_string, strlen(confirmation_string));
 }
 
-void get_command(char* command, char* recvline, User user, bool *wants_to_quit) 
+void get_command(char* command, char* recvline, User user, bool *wants_to_quit) /* chama a função correspondente ao comando command */
 {
 	if (strcmp(command, "NICK") == 0)
 		command_nick(recvline, user);
